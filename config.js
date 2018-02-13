@@ -19,7 +19,7 @@ config.dbPort = 3306;
 config.tokenKey = 'gemtektoken';
 config.generalKey = 'gemtek';
 //Mongo Database
-config.mongoDB = 'blazing';
+config.mongoDB = 'agri';
 //Pagination
 config.paginate = true;
 config.page_limit = 10;
