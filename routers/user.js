@@ -1,0 +1,462 @@
+var express = require('express');
+var router = express.Router();
+var async  = require('async');
+var config = require('../config');
+var mysqlTool = require('../modules/mysqlTool.js');
+var util = require('../modules/util.js');
+var json2csv = require('json2csv');
+var fs = require('fs');
+
+//Mysql database API
+
+module.exports = (function() {
+
+    router.post('/login/:cp', function(req, res) {
+		//Check params
+		var ip = req.get("x-client-ip");
+		if(ip.indexOf(",") != -1){
+			let ar = ip.split(',')
+			ip = ar[0]
+		}
+        var cp = req.params.cp;
+		var checkArr = ['acc','pwd', 'type'];
+        var userInfo = util.checkFormData(req, checkArr);
+        if (userInfo === null) {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+		}
+		userInfo.ip = ip;
+		userInfo.cp = cp;
+		
+        async.waterfall([
+            function(next){
+                mysqlTool.getUser(userInfo, function(err1, result1){
+                    if (result1.length === 0) {
+                        res.send({
+                            "responseCode" : '404',
+                            "responseMsg" : 'No user data'
+                        });
+                        return;
+					}
+					// Decrypt 
+					var dbUser = result1[0];
+					var userPwd = dbUser.userPwd;
+					var decryptPwd = util.decode(userPwd, config.pwKey);
+					if (decryptPwd && decryptPwd !== userInfo.pwd) {
+						if(dbUser.userBlock === 1){
+							res.send({
+								"responseCode" : '401',
+								"responseMsg" : 'user block'
+							});
+						}else{
+							res.send({
+								"responseCode" : '403',
+								"responseMsg" : 'password incorrect'
+							});
+						}
+						return;
+					}
+                    next(err1, dbUser);
+                });
+            },
+            function(dbUser, next){
+                mysqlTool.getGroup(dbUser.roleId, function(err2, grps){
+                    next(err2, dbUser, grps);
+                });
+            },
+            function(dbUser, grps, next){
+                util.genToken(userInfo, dbUser, grps, function(token) {
+                    next(null, dbUser, grps, token);
+                    // 把 result4 放到下面的 rst (因為 fun3 是最後一個了)
+                });
+			},
+            function(dbUser, grps, token, next){
+				let sqlStr = 'insert into api_login_history(userId, userToken, history_login_time, history_ip, history_type, createTime) values ('+dbUser.userId+',"'+token+'", current_time(), "'+userInfo.ip+'", '+userInfo.type+', current_time())';
+				console.log('Insert history sql string :\n' + sqlStr);
+                mysqlTool.insert(sqlStr, function(err4, historyId){
+					if (err4) {
+						next(err4, historyId);
+					} else {
+					  var obj = genUserInfo(userInfo, dbUser, grps, token);
+					  res.send(obj);
+					}
+                    // 把 result4 放到下面的 rst (因為 fun3 是最後一個了)
+                });
+            }
+        ], function(err, rest){
+            if(err) {
+				res.send({
+					"responseCode" : '999',
+					"responseMsg" : 'user block'
+				});
+			} 	    
+		});
+        
+	});
+
+	router.post('/logout', function(req, res) {
+		var token = req.body.token;
+		if (token === undefined) {
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
+		}
+		var ar = util.getUserTokenArr(token);
+		if (ar.length !== 6) {
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'token fail'
+			});
+			return;
+		}
+		let sqlStr1 = 'select * from api_login_history where history_logout_time is null and userToken = "'+token+'" and userId = ' + ar[2];
+		let sqlStr2 = 'update api_login_history set history_logout_time = current_time() where history_logout_time is null and userToken = "'+token+'" and userId = ' + ar[2];
+		console.log('/user/logout sqlStr : \n' + sqlStr2);
+		async.waterfall([
+			function(next){
+				mysqlTool.query(sqlStr1, function(err1, result1){
+					next(err1, result1);  
+				});
+			},
+			function(rst1, next){
+				mysqlTool.update(sqlStr2, function(err2, result2){
+					next(err2, rst1, result2);
+				});
+			}
+		], function(err, rst){
+			if(err) throw err;  // 匯集 err1 err2 err3
+			if(rst.length >0) {
+				res.send({
+					"responseCode" : '000',
+					"responseMsg" : 'logout success'
+				});
+			} else {
+				res.send({
+					"responseCode" : '404',
+					"responseMsg" : 'alredy logout or no login data'
+				});
+			}
+		});
+	});
+
+	router.post('/register/:cp', function(req, res) {
+		var cp = req.params.cp;
+		var checkArr = ['name','pwd', 'pwd2', 'gender', 'email', 'type'];
+        var userInfo = util.checkFormData(req, checkArr);
+        if (userInfo === null) {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
+		}
+		userInfo.cp = cp;
+		if (userInfo.pwd !== userInfo.pwd2) {
+			res.send({
+				"responseCode" : '404',
+				"responseMsg" : 'pwd&pwd2 different'
+			});
+			return;
+		}
+		let sqlStr1 = 'select * from api_system_properties where p_name = "ACC_FORMAT" ';
+		let sqlStr2 = 'select * from api_system_properties where p_name = "EMAIL_FORMAT" ';
+		let sqlStr3 = 'select * from api_system_properties where p_name = "PWD_FORMAT" ';
+		let sqlStr4 = 'select * from api_user where cpId =(select cpId from api_cp where cpName = "'+userInfo.cp+'") and (userName = "'+userInfo.name+'" or email = "'+userInfo.email+'")'
+		async.waterfall([
+			function(next){
+				//Check acc format
+				mysqlTool.query(sqlStr1, function(err1, result1){
+					if(checkFormat(userInfo.name, result1)){
+						next(err1, result1);
+					} else {
+						res.send({
+							"responseCode" : '404',
+							"responseMsg" : 'ACC_FORMAT error'
+						});
+					}
+				});
+			},
+			function(rst1, next){
+				mysqlTool.query(sqlStr2, function(err2, result2){
+					//Check email format
+					if(checkFormat(userInfo.email, result2)){
+						next(err2, result2);
+					} else {
+						res.send({
+							"responseCode" : '404',
+							"responseMsg" : 'Email_FORMAT error'
+						});
+					}
+				});
+			},
+			function(rst2, next){
+				mysqlTool.query(sqlStr3, function(err3, result3){
+					//Check pwd format
+					if(checkFormat(userInfo.pwd, result3) && checkFormat(userInfo.pwd2, result3)){
+						next(err3, result3);
+					} else {
+						res.send({
+							"responseCode" : '404',
+							"responseMsg" : 'PWD_FORMAT error'
+						});
+					}
+				});
+			},
+			function(rst3, next){
+				console.log(sqlStr4);
+				mysqlTool.query(sqlStr4, function(err4, result4){
+					//Check user,email is exist or not
+					if (result4.length > 0) {
+						res.send({
+							"responseCode" : '404',
+							"responseMsg" : 'username or email exists'
+						});
+					} else {
+						next(err4, result4);
+					}
+				});
+			},
+			function(rst4, next){
+				var encodePwd = util.encode(userInfo.pwd, config.pwKey);
+				let role = 0
+				if(userInfo.cp === 1){
+					role = 29;
+				}
+				if(userInfo.cp === 8){
+					role = 15; 
+				}
+				let sqlStr5 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ((select cpId from api_cp where cpName = "'+userInfo.cp+'"), '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, current_time(), 1)'
+				console.log('insert new user sql :\n' + sqlStr5);
+				mysqlTool.insert(sqlStr5, function(err5, result5){
+					next(err5, result5);
+				});
+			}
+		], function(err, rst){
+			if(err) {
+				res.send({
+					"responseCode" : '404',
+					"responseMsg" : 'Query mysql error'
+				});
+			} else {
+              if(rst) {
+				res.send({
+					"responseCode" : '000',
+					"responseMsg" : 'sign up success'
+				});
+			  } else {
+				res.send({
+					"responseCode" : '999',
+					"responseMsg" : 'sign up fail'
+				});
+			  }
+			}
+		});
+	});
+
+	
+	//Read 
+	router.get('/', function(req, res) {
+		var token = req.query.token;
+		var mac = req.query.macAddr;
+		if (mac === undefined || token === undefined) {
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return false;
+		}
+		var from = null, to = null;
+		if (req.query.from)
+			from = req.query.from;
+		if (req.query.to)
+			to = req.query.to;
+		//Pagination settings
+		var paginate = config.paginate;
+		var page_limit = config.page_limit;	
+
+		if(req.query.paginate)
+			paginate = (req.query.paginate === 'true');
+		if(req.query.limit)
+			page_limit = req.query.limit;
+		var page = 1;
+		if(req.query.page)
+			page = req.query.page;
+		var offset = (page-1) * page_limit;
+
+		//Calculate pages
+		var next = Number(page)+1;
+		if(page != 1)
+			var previous = Number(page)-1;
+		else
+			var previous = Number(page);
+		var json = {macAddr: mac};
+		if(from !== null && to !== null) {
+			json.recv = {$gte: from, $lte: to};
+		}
+		// Check token then get devices
+
+        util.checkAndParseToken(token, function(err,result){
+			if (err) {
+				res.send({err});
+				return false;
+			} else { 
+				//Token is ok
+				var tokenArr = result;
+				mongoDevice.find(json, paginate, offset, page_limit).then(function(data) {
+					// on fulfillment(已實現時)
+					console.log('docs : ' + JSON.stringify(data));
+					res.status(200);
+					res.setHeader('Content-Type', 'application/json');
+					if (paginate) {
+						res.json({
+							"responseCode" : '000',
+							"pages" : {
+								"total": data.total,
+								"next": next,
+								"previous": previous,
+								"last": Math.ceil(data.total/page_limit),
+								"limit": page_limit
+							},
+							"data" : data.docs
+						});
+					} else {
+						res.json({
+							"responseCode" : '000',
+							"data" : data
+						});
+					}
+				}, function(reason) {
+					// on rejection(已拒絕時)
+					res.send({
+						"responseCode" : '999',
+						"responseMsg" : reason
+					}); 
+				}); 		  
+			}
+		});
+	});
+
+	router.get('/:mac', function(req, res) {
+	
+		var mac = req.params.mac;
+		if (mac === undefined ) {
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return false;
+		}
+		var from = null, to = null;
+		if (req.query.from)
+			from = req.query.from;
+		if (req.query.to)
+			to = req.query.to;	
+
+		if(req.query.paginate)
+			paginate = (req.query.paginate === 'true');
+		if(req.query.limit)
+			page_limit = Number(req.query.limit);
+		var page = 1;
+		if(req.query.page)
+			page = Number(req.query.page);
+		var offset = (page-1) * page_limit;
+
+		//Calculate pages
+		var next = Number(page)+1;
+		if(page != 1)
+			var previous = Number(page)-1;
+		else
+			var previous = Number(page);
+	    var searchMac = '.*' + mac + '.*';
+		var json = {macAddr: {$regex : mac}};
+		if(from !== null && to !== null) {
+			json.recv = {$gte: from, $lte: to};
+		}
+
+		// Check token then get devices
+
+        mongoDevice.find(json, paginate, offset, page_limit).then(function(data) {
+			// on fulfillment(已實現時)
+			console.log('docs : ' + JSON.stringify(data));
+			res.status(200);
+			res.setHeader('Content-Type', 'application/json');
+			if (paginate) {
+				toSaveCSVFile(data, page, page_limit);
+				res.json({
+					"responseCode" : '000',
+					"pages" : {
+						"total": data.total,
+						"next": next,
+						"previous": previous,
+						"last": Math.ceil(data.total/page_limit),
+						"limit": page_limit
+					},
+					"data" : data.docs.length
+				});
+			} else {
+				res.json({
+					"responseCode" : '000',
+					"data" : data
+				});
+			}
+		}, function(reason) {
+			// on rejection(已拒絕時)
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : reason
+			}); 
+		}); 
+	});
+
+	return router;
+
+})();
+
+function toSaveCSVFile(data, page, limit) {
+	var arr = [];
+	var item = (page-1)*limit + 1;
+	for(let i=0; i<data.docs.length;i++) {
+		console.log('data :' + JSON.stringify(data.docs[i]));
+		let doc = data.docs[i];
+		let obj = {}; 
+		obj.item = i + item;
+		obj.macAddr = doc.macAddr;
+		obj.date = doc.date;
+		obj.fport = doc.extra.fport;
+		obj.gwId = doc.extra.gwid;
+		arr.push(obj);
+	}
+	var fields = ['item', 'macAddr', 'fport', 'gwId', 'date'];
+	var csv = json2csv({ data: arr, fields: fields });
+    fs.writeFile('file.csv', csv, function(err) {
+		if (err) throw err;
+		console.log('file saved');
+	});
+	  
+}
+
+function genUserInfo (userInfo, dbUser, grps, token) {
+	let newPayload = {};
+	let userData = {};
+	userData['name'] = dbUser['userName'];
+    userData['nickName'] = dbUser['nickName'];
+    userData['gender'] = dbUser['gender'];
+    userData['pic'] = dbUser['pic'];
+    userData['email'] = dbUser['email'];
+    newPayload['userInfo'] = userData;
+    newPayload['services'] = grps;
+    newPayload['role'] = dbUser['roleName'];
+    newPayload['authToken'] = token;
+    newPayload['responseCode'] = '000';
+	newPayload['responseMsg'] = 'login success';
+	return newPayload;
+}
+
+function checkFormat (str, result) {
+	let re = new RegExp(result[0].p_value, 'g')
+	return re.test(str);
+}
