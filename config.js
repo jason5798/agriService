@@ -5,6 +5,9 @@ config.port = 8000;
 //Authentication
 config.auth = false;
 
+//Base Url
+config.baseurl = '/v1/';
+
 //Myaql Database
 config.database = 'cloudb';
 config.username = 'admin';
@@ -14,7 +17,7 @@ config.dbHost = '210.242.93.31';
 config.dbPort = 3306;
 //Key
 config.tokenKey = 'gemtektoken';
-config.pwKey = 'gemtek';
+config.generalKey = 'gemtek';
 //Mongo Database
 config.mongoDB = 'blazing';
 //Pagination

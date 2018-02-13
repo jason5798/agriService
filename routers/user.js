@@ -43,7 +43,7 @@ module.exports = (function() {
 					// Decrypt 
 					var dbUser = result1[0];
 					var userPwd = dbUser.userPwd;
-					var decryptPwd = util.decode(userPwd, config.pwKey);
+					var decryptPwd = util.decode(userPwd, config.generalKey);
 					if (decryptPwd && decryptPwd !== userInfo.pwd) {
 						if(dbUser.userBlock === 1){
 							res.send({
@@ -73,7 +73,7 @@ module.exports = (function() {
                 });
 			},
             function(dbUser, grps, token, next){
-				let sqlStr = 'insert into api_login_history(userId, userToken, history_login_time, history_ip, history_type, createTime) values ('+dbUser.userId+',"'+token+'", current_time(), "'+userInfo.ip+'", '+userInfo.type+', current_time())';
+				let sqlStr = 'insert into api_login_history(userId, userToken, history_login_time, history_ip, history_type, createTime) values ('+dbUser.userId+',"'+token+'", "'+util.getCurrentTime()+'", "'+userInfo.ip+'", '+userInfo.type+', "'+util.getCurrentTime()+'")';
 				console.log('Insert history sql string :\n' + sqlStr);
                 mysqlTool.insert(sqlStr, function(err4, historyId){
 					if (err4) {
@@ -114,7 +114,7 @@ module.exports = (function() {
 			return;
 		}
 		let sqlStr1 = 'select * from api_login_history where history_logout_time is null and userToken = "'+token+'" and userId = ' + ar[2];
-		let sqlStr2 = 'update api_login_history set history_logout_time = current_time() where history_logout_time is null and userToken = "'+token+'" and userId = ' + ar[2];
+		let sqlStr2 = 'update api_login_history set history_logout_time = "'+util.getCurrentTime()+'" where history_logout_time is null and userToken = "'+token+'" and userId = ' + ar[2];
 		console.log('/user/logout sqlStr : \n' + sqlStr2);
 		async.waterfall([
 			function(next){
@@ -143,6 +143,7 @@ module.exports = (function() {
 		});
 	});
 
+	//Register
 	router.post('/register/:cp', function(req, res) {
 		var cp = req.params.cp;
 		var checkArr = ['name','pwd', 'pwd2', 'gender', 'email', 'type'];
@@ -221,7 +222,7 @@ module.exports = (function() {
 				});
 			},
 			function(rst4, next){
-				var encodePwd = util.encode(userInfo.pwd, config.pwKey);
+				var encodePwd = util.encode(userInfo.pwd, config.generalKey);
 				let role = 0
 				if(userInfo.cp === 1){
 					role = 29;
@@ -229,7 +230,7 @@ module.exports = (function() {
 				if(userInfo.cp === 8){
 					role = 15; 
 				}
-				let sqlStr5 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ((select cpId from api_cp where cpName = "'+userInfo.cp+'"), '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, current_time(), 1)'
+				let sqlStr5 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ((select cpId from api_cp where cpName = "'+userInfo.cp+'"), '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, "'+util.getCurrentTime()+'", 1)'
 				console.log('insert new user sql :\n' + sqlStr5);
 				mysqlTool.insert(sqlStr5, function(err5, result5){
 					next(err5, result5);
@@ -257,19 +258,14 @@ module.exports = (function() {
 		});
 	});
 
-	
-	//Read 
-	router.get('/', function(req, res) {
+	//Get users 
+	router.get('/users', function(req, res) {
 		var token = req.query.token;
-		var mac = req.query.macAddr;
-		if (mac === undefined || token === undefined) {
-			res.send({
-				"responseCode" : '999',
-				"responseMsg" : 'Missing parameter'
-			});
-			return false;
+		var search = req.query.search;
+		if (search) {
+			search = util.decode(search, config.generalKey);
 		}
-		var from = null, to = null;
+		/*var from = null, to = null;
 		if (req.query.from)
 			from = req.query.from;
 		if (req.query.to)
@@ -296,50 +292,254 @@ module.exports = (function() {
 		var json = {macAddr: mac};
 		if(from !== null && to !== null) {
 			json.recv = {$gte: from, $lte: to};
-		}
+		}*/
 		// Check token then get devices
-
-        util.checkAndParseToken(token, function(err,result){
-			if (err) {
-				res.send({err});
-				return false;
-			} else { 
-				//Token is ok
-				var tokenArr = result;
-				mongoDevice.find(json, paginate, offset, page_limit).then(function(data) {
-					// on fulfillment(已實現時)
-					console.log('docs : ' + JSON.stringify(data));
-					res.status(200);
-					res.setHeader('Content-Type', 'application/json');
-					if (paginate) {
-						res.json({
-							"responseCode" : '000',
-							"pages" : {
-								"total": data.total,
-								"next": next,
-								"previous": previous,
-								"last": Math.ceil(data.total/page_limit),
-								"limit": page_limit
-							},
-							"data" : data.docs
-						});
-					} else {
-						res.json({
-							"responseCode" : '000',
-							"data" : data
-						});
+		async.waterfall([
+			function(next){
+				util.checkAndParseToken(token, res,function(err1, result1){
+					if (err1) {
+						return;
+					} else { 
+						//Token is ok
+						console.log('userInfo : ' + JSON.stringify(result1))
+						let userInfo = result1.userInfo;
+						let sqlStr = '';
+						if (result1.OAFlg) {
+							//all user query fo oa
+							sqlStr = 'select u.userId, u.cpId, u.roleId, u.userName, u.pic, u.email, u.userBlock, u.userType, u.createTime, g.expenseGrpId, g.grpName, r.roleName, case when u.userBlock = 0 then "unblock"  when u.userBlock = 1 then "block" else "unknown" end as blockDesc from api_user u left join api_user_mapping m on u.userId = m.userId left join api_expense_grp g on m.locId = g.expenseGrpId left join api_role r on u.roleId = r.roleId where u.cpId = '+userInfo.cpId;
+						} else {
+							if(userInfo.dataset === 0) {
+								//All user query
+								sqlStr = 'select u.userId, u.cpId, u.roleId, u.userName, u.pic, u.email, u.userBlock, u.userType, u.createTime, c.cpName, r.roleName, case when u.userBlock = 0 then "unblock"  when u.userBlock = 1 then "block" else "unknown" end as blockDesc from api_user u left join api_cp c on u.cpId = c.cpId left join api_role r on u.roleId = r.roleId where 1 =1 ';
+							} else if (userInfo.dataset === 1) {
+								//all user by cp
+								sqlStr = 'select u.userId, u.cpId, u.roleId, u.userName, u.pic, u.email, u.userBlock, u.userType, u.createTime, c.cpName, r.roleName, case when u.userBlock = 0 then "unblock"  when u.userBlock = 1 then "block" else "unknown" end as blockDesc from api_user u left join api_cp c on u.cpId = c.cpId left join api_role r on u.roleId = r.roleId where u.cpId = '+userInfo.cpId
+							} else {
+								res.send({
+									"responseCode" : '401',
+									"responseMsg" : 'no permission to access'
+								});
+								return;
+							}
+						}	
+						next(err1, sqlStr); 	  
 					}
-				}, function(reason) {
-					// on rejection(已拒絕時)
-					res.send({
-						"responseCode" : '999',
-						"responseMsg" : reason
-					}); 
-				}); 		  
+				});
+			},
+			function(rst1, next){
+				mysqlTool.query(rst1, function(err2, result2){
+					next(err2, result2);
+				});
+			}
+		], function(err, rst){
+			if(err) {
+				res.send({
+					"responseCode" : '404',
+					"responseMsg" : 'query user fail'
+				});
+			} else if(rst.length > 0) {
+				res.send({
+					"responseCode" : '000',
+					"responseMsg" : 'query success',
+					"size": rst.length,
+					"users": rst
+				});
+			} else {
+				res.send({
+					"responseCode" : '401',
+					"responseMsg" : 'No datal'
+				});
 			}
 		});
 	});
 
+	//update user
+	router.put('/users', function(req, res) {
+		//Check params
+		var checkArr = ['token','mUserId', 'catId', 'roleId','userBlock'];
+        var actInfo = util.checkFormData(req, checkArr);
+        if (actInfo === null) {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+		}
+
+        async.waterfall([
+			function(next){
+				util.checkAndParseToken(req.body.token, res,function(err1, result1){
+					if (err1) {
+						return;
+					} else { 
+						//Token is ok
+						actInfo = util.addJSON(actInfo, result1.userInfo);
+						console.log('actInfo : ' + JSON.stringify(actInfo))
+						let sqlStr = '';
+						if (result1.OAFlg) {
+							//all user query fo oa
+							sqlStr = 'select * from api_user_mapping where userId = '+actInfo.mUserId
+							next(err1, sqlStr);
+						} else {
+							if(actInfo.dataset === 0 || actInfo.dataset === 1) {
+								//All user query		
+								sqlStr = 'UPDATE api_user SET `cpId` = '+actInfo.catId+', `roleId` = '+actInfo.roleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId +' and cpId = '+actInfo.cpId;
+								console.log('put /users sqlStr :\n' + sqlStr);
+								mysqlTool.update(sqlStr, function(err, result){
+									if (err) {
+										res.send({
+											"responseCode" : '404',
+											"responseMsg" : err
+										});
+									} else {
+										res.send({
+											"responseCode" : '000',
+											"responseMsg" : 'updata success'
+										});
+									}	
+								});
+							} else {
+								res.send({
+									"responseCode" : '401',
+									"responseMsg" : 'no permission to access'
+								});
+								return;
+							}
+						}	
+						 	  
+					}
+				});
+			},
+			function(rst1, next){
+				//Get user mapping from api_user_mapping
+				let obj = {}, sqlStr1 = '';
+				mysqlTool.query(rst1, function(err2, result2){
+					//Has user mapping or not?
+					if(result2.length > 0) {
+						//User mapping is exist
+						sqlStr1 = 'UPDATE api_user_mapping SET `locId` = '+actInfo.catId+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId;
+					    obj = {"isUpdate": true, "sqlstr": sqlStr1};
+					} else {
+						//User mapping not exist
+						sqlStr1 = 'INSERT INTO api_user_mapping (`userId`, `locId`, `createTime`, `createUser`) VALUES ('+actInfo.mUserId+', '+actInfo.catId+', "'+util.getCurrentTime()+'", '+actInfo.userId+')';
+						obj = {"isUpdate": false, "sqlstr": sqlStr1};
+					}
+					next(err2, obj);
+				});
+			},
+			function(rst2, next){
+				//New / update user mapping
+				if (rst2.isUpdate) {
+					mysqlTool.update(rst2.sqlstr, function(err3, result3){
+						if (err3) {
+							res.send({
+								"responseCode" : '999',
+								"responseMsg" : 'update mapping fail'
+							});
+							return;
+						} else {
+							next(err3, result3);
+						}
+					});
+				} else {
+					mysqlTool.insert(rst2.sqlstr, function(err3, result3){
+						if (err3) {
+							res.send({
+								"responseCode" : '999',
+								"responseMsg" : 'insert mapping fail'
+							});
+							return;
+						} else {
+							next(err3, result3);
+						}
+					});
+				}
+			},
+			function(rst3, next){
+				//Update User for oa
+				let sqlStr = 'UPDATE api_user SET `roleId` = '+actInfo.roleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId +' and cpId = '+actInfo.cpId;
+				console.log('updateuser sqlstr :\n' + sqlStr);
+				mysqlTool.update(sqlStr, function(err4, result4){
+					next(err4, result4);
+				});
+			}
+		], function(err, rst){
+			if(err) {
+				res.send({
+					"responseCode" : '404',
+					"responseMsg" : 'update fail'
+				});
+			} else {
+				res.send({
+					"responseCode" : '000',
+					"responseMsg" : 'update success'
+				});
+			}
+		});
+	});
+
+	//delete user
+	router.delete('/users', function(req, res) {
+		//Check params
+		var checkArr = ['token','delUserId'];
+        var actInfo = util.checkFormData(req, checkArr);
+        if (actInfo === null) {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+		}
+
+        async.waterfall([
+			function(next){
+				util.checkAndParseToken(req.body.token, res,function(err1, result1){
+					if (err1) {
+						return;
+					} else { 
+						//Token is ok
+						actInfo = util.addJSON(actInfo, result1.userInfo);
+						console.log('actInfo : ' + JSON.stringify(actInfo))
+						let sqlStr = '';
+						if (result1.OAFlg) {
+							//all user query fo oa
+							sqlStr = 'delete from api_user where cpId = '+actInfo.cpId +' and userId = '+actInfo.delUserId;
+						} else {
+							if(actInfo.dataset !== 0 && actInfo.dataset === 1) {
+								sqlStr = 'delete from api_user where cpId = '+actInfo.cpId +' and userId = '+actInfo.delUserId
+							} else {
+								res.send({
+									"responseCode" : '401',
+									"responseMsg" : 'no permission to access'
+								});
+								return;
+							}
+						}
+						next(err1, sqlStr);	  
+					}
+				});
+			},
+			function(rst1, next){
+				//Get user mapping from api_user_mapping
+				let obj = {}, sqlStr1 = '';
+				mysqlTool.remove(rst1, function(err2, result2){
+					next(err2, result2);
+				});
+			}
+		], function(err, rst){
+			if(err) {
+				res.send({
+					"responseCode" : '404',
+					"responseMsg" : 'delete fail'
+				});
+			} else {
+				res.send({
+					"responseCode" : '000',
+					"responseMsg" : 'delete success'
+				});
+			}
+		});
+	});
+
+	//For taipei query
 	router.get('/:mac', function(req, res) {
 	
 		var mac = req.params.mac;
@@ -416,6 +616,7 @@ module.exports = (function() {
 
 })();
 
+//For export csv to file
 function toSaveCSVFile(data, page, limit) {
 	var arr = [];
 	var item = (page-1)*limit + 1;
@@ -439,6 +640,7 @@ function toSaveCSVFile(data, page, limit) {
 	  
 }
 
+//Combine user information for login
 function genUserInfo (userInfo, dbUser, grps, token) {
 	let newPayload = {};
 	let userData = {};
@@ -456,6 +658,7 @@ function genUserInfo (userInfo, dbUser, grps, token) {
 	return newPayload;
 }
 
+//Check input field format
 function checkFormat (str, result) {
 	let re = new RegExp(result[0].p_value, 'g')
 	return re.test(str);

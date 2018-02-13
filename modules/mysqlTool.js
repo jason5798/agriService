@@ -17,7 +17,7 @@ module.exports = {
     insert,
     update,
     query,
-    create,
+    remove,
     getDevices,
     getHistory,
     getProperties,
@@ -41,18 +41,8 @@ function update (sqlStr, callback) {
         return callback(null, result);
     })
     .catch( function(err) {
-        return callback(err.message);
+        return callback(err);
     });
-}
-
-function create (table, keys, value, callback) {
-    sequelize.query("INSERT INTO `" + ( TABLE_PREFIX + req.params.table ) + "` (" + keys + ") VALUES ("+ values +")", { type: sequelize.QueryTypes.INSERT})
-		.then(function(id) {
-			return callback(null, id);
-		})
-		.catch( function(err) {
-			return callback(err.message);
-		});
 }
 
 function query (query, callback) {
@@ -65,21 +55,14 @@ function query (query, callback) {
 		});
 }
 
-function remove (table, id, callback) {
-    sequelize.query("SHOW KEYS FROM `" + TABLE_PREFIX + table + "` WHERE Key_name = 'PRIMARY'", { type: sequelize.QueryTypes.SELECT})
-		.then(function(keys) {
-			var primary_key = keys[0].Column_name;
-			sequelize.query("DELETE FROM `"+TABLE_PREFIX+req.params.table+"` WHERE `"+ primary_key +"` = "+mysql_clean(id), { type: sequelize.QueryTypes.DELETE})
-			.then(function() {
-				return callback(null, 'Delete is success');
-			})
-			.catch( function(err) {
-				return callback(err.message);
-			});
-		})
-		.catch( function(err) {
-			return callback(err.message);
-		});
+function remove (sqlStr, callback) {
+    sequelize.query(sqlStr, { type: sequelize.QueryTypes.DELETE})
+    .then(function() {
+        return callback(null, 'delete success');
+    })
+    .catch( function(err) {
+        return callback(err);
+    });
 }
 
 function getDevices (mac, callback) {
@@ -98,13 +81,13 @@ function getHistory (token, callback) {
         if (err) {
             return callback(err);
         }
-        return callback(null, data[0]);
+        return callback(null, data);
     });
 }
 
 function getProperties (callback) {
     var read_query = "SELECT * FROM `" + ( TABLE_PREFIX + "system_properties" ) + "` WHERE p_name = 'TOKEN_EXPIRE' ";
-    var rows = get(read_query, function(err,data){
+    var rows = query(read_query, function(err,data){
         if (err) {
             return callback(err);
         }

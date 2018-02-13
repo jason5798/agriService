@@ -17,13 +17,11 @@ module.exports = (function() {
 			return false;
 		}
 		
-        util.checkAndParseToken(token, function(err,result){
+        util.checkAndParseToken(token, res,function(err,result){
 			if (err) {
-				res.send({err});
-				return false;
+				return;
 			} else { 
 				//Token is ok
-                var tokenArr = result;
                 mongoMap.find({}).then(function(data) {
                     // on fulfillment(已實現時)
                     res.status(200);
@@ -55,13 +53,11 @@ module.exports = (function() {
 		}
         var json = {'type': type};
 		
-        util.checkAndParseToken(token, function(err,result){
+        util.checkAndParseToken(token, res,function(err,result){
 			if (err) {
-				res.send({err});
-				return false;
+				return;
 			} else { 
 				//Token is ok
-                var tokenArr = result;
                 mongoMap.find(json).then(function(data) {
                     // on fulfillment(已實現時)
                     res.status(200);
@@ -95,13 +91,11 @@ module.exports = (function() {
 				"responseMsg" : obj
 			});
         }
-        util.checkAndParseToken(req.body.token, function(err,result){
+        util.checkAndParseToken(token, res,function(err,result){
 			if (err) {
-				res.send({err});
-				return false;
+				return;
 			} else { 
 				//Token is ok
-                var tokenArr = result;
                 mongoMap.create(obj).then(function(data) {
                     // on fulfillment(已實現時)
                     res.status(200);
@@ -150,13 +144,11 @@ module.exports = (function() {
 
 		json.updateTime = new Date();
 
-        util.checkAndParseToken(req.body.token, function(err,result){
+        util.checkAndParseToken(token, res, function(err,result){
 			if (err) {
-				res.send({err});
-				return false;
+				return;
 			} else { 
 				//Token is ok
-                var tokenArr = result;
                 mongoMap.update({"deviceType": req.body.deviceType}, json).then(function(data) {
                     // on fulfillment(已實現時)
                     res.status(200);
@@ -186,13 +178,11 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 		}
-		util.checkAndParseToken(req.body.token, function(err,result){
+		util.checkAndParseToken(token, res,function(err,result){
 			if (err) {
-				res.send({err});
-				return false;
+				return;
 			} else { 
 				//Token is ok
-                var tokenArr = result;
                 mongoMap.remove({"deviceType": req.body.deviceType}).then(function(data) {
                     // on fulfillment(已實現時)
                     res.status(200);

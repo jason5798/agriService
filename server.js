@@ -44,15 +44,15 @@ router.get('/', function(req, res) {
 	res.json({ message: 'MQTT Broker and API!' });   
 });
 
-app.use('/user', user);//Login,logout,User
-app.use('/api', api);
-app.use('/cps', cp);//Company
-app.use('/grp', grp);//Group
-app.use('/map', map);//Device type map
-app.use('/roles', roles);//Role : user limit
-app.use('/func', func);//function : WEB function enable or not
-app.use('/sys', sys);
-app.use('/device', device);
+app.use(config.baseurl, user);//Login,logout,User
+app.use(config.baseurl + 'api', api);
+app.use(config.baseurl + 'cps', cp);//Company
+app.use(config.baseurl + 'grp', grp);//Group
+app.use(config.baseurl + 'map', map);//Device type map
+app.use(config.baseurl + 'roles', roles);//Role : user limit
+app.use(config.baseurl + 'func', func);//function : WEB function enable or not
+app.use(config.baseurl + 'sys', sys);
+app.use(config.baseurl + 'device', device);
 
 api = require('./routers/api.js'),
 

@@ -21,7 +21,9 @@ module.exports = {
     checkAndParseMessage,
     checkFormData,
     isDebug,
-    isAuth
+    isAuth,
+    addJSON,
+    getCurrentTime
 }
 
 function isAuth () {
@@ -251,72 +253,76 @@ function saveMsgToDB (msg) {
     });
 }
 
-function checkAndParseToken (token,callback) {
+function checkAndParseToken (token, res, callback) {
 	if (!token) {
-        if (debug) {
-            console.log('Token is missing');
-        }
-		return({
-			"responseCode" : '999',
-			"responseMsg" : 'Missing parameter'
-		});
+        res.send({
+            "responseCode" : '999',
+            "responseMsg" : 'Missing parameter'
+        });
+        return callback(true);
 	} else if (token.length < 1){
-        if (debug) {
-            console.log('Token length error');
-        }
-		return({
-			"responseCode" : '999',
-			"responseMsg" : 'Token length error'
-		});
+        res.send({
+            "responseCode" : '999',
+            "responseMsg" : 'token length error'
+        });
+		return callback(true);
 	}
 		
 	// Decrypt 
 	console.log('token :\n' + token);
     var tArr = getUserTokenArr(token);
-	var ts = tArr[1];
+    var ts = tArr[1];
+    var actInfo = {};
+    actInfo['grp'] = tArr[0];
+    actInfo['ts'] = Number(tArr[1]);
+    actInfo['userId'] = Number(tArr[2]);
+    actInfo['cpId'] = Number(tArr[3]);
+    actInfo['roleId'] = Number(tArr[4]);
+    actInfo['dataset'] = Number(tArr[5]);
     
     //fun2 getProperties 不需要 fun1 getHistory 的資料
     //但最後的結果要把 fun1 fun2 的資料整合起來
-	async.series([
+	async.waterfall([
 		function(next){
 			mysqlTool.getHistory(token, function(err1, result1){
+                if(result1.length <= 0) {
+                    res.send({
+                        "responseCode" : '404',
+                        "responseMsg" : 'User already logout'
+                    });
+                    return callback(true);
+                }
                 next(err1, result1);
 			});
 		},
-		function(next){
+		function(rst1, next){
 			mysqlTool.getProperties(function(err2, result2){
-                next(err2, result2);
+                if(result2.length <= 0) {
+                    res.send({
+                        "responseCode" : '404',
+                        "responseMsg" : 'No properties data'
+                    });
+                    return callback(true);
+                }
+                next(err2, [rst1, result2]);
 			});
 		}
 	], function(errs, results){
 		if(errs) {
-            if (debug) {
-                console.log('checkAndParseToken err :\n' + JSON.parse(errs));
-            }
-            return callback({
+            res.send({
                 "responseCode" : '404',
-                "responseMsg" : 'Query data fail'
+                "responseMsg" : 'Query token data fail'
             });
+            return callback(true);
         }
-        //Get history check
-        if(results[0] === undefined || results[0].length <1){
-            if (debug) {
-                console.log('User already logout');
-            }
-            return callback({
-                "responseCode" : '404',
-                "responseMsg" : 'User already logout'
-            });
-        }
+        
         //Get properties check
         if (results[1].length < 1) {
-            if (debug) {
-                console.log('No properties data');
-            }
-            return callback({
+            res.send({
                 "responseCode" : '404',
                 "responseMsg" : 'No properties data'
             });
+            return callback(true);
         }
         try {
             var period = Number(results[1].p_value);
@@ -325,22 +331,44 @@ function checkAndParseToken (token,callback) {
             var loginSeconds = parseInt(ts)
             let subVal = nowSeconds - loginSeconds;
             if( subVal > period || subVal < 0 ){
-                if (debug) {
-                    console.log('Token expired');
-                }
-                return callback({
-                    "responseCode" : '401',
+                res.send({
+                    "responseCode" : '404',
                     "responseMsg" : 'Token expired'
                 });
+                return callback(true);
             }else{
-                return callback(null,tArr);
+                let grpStr = actInfo.grp
+                let ar = grpStr.split(',')
+                let accessFlg = false
+                let OAFlg = false
+                for(let i = 0 ; i < ar.length ; i++){
+                    if(ar[i] === '22'|| ar[i] === '30'){
+                        accessFlg = true
+                    }
+                    if(ar[i] === '8'){
+                        OAFlg = true
+                    }
+                }
+                if (accessFlg) {
+                    var data = {
+                        "OAFlg" : OAFlg,
+                        "userInfo" : actInfo
+                    };
+                    return callback(null, data);
+                } else {
+                    res.send({
+                        "responseCode" : '401',
+                        "responseMsg" : 'no permission to access'
+                    });
+                    return callback(true);
+                }
             }
         } catch (error) {
-            onsole.log(new Date() + 'checkAndParseToken err :' + error);
-            return callback({
-                "responseCode" : '999',
+            res.send({
+                "responseCode" : '404',
                 "responseMsg" : error
             });
+            return callback(true);
         }
 	});
 }
@@ -440,4 +468,20 @@ function checkFormData (req, checkArr) {
     } catch (error) {
         return 'Parameter format error';
     }
+}
+
+function addJSON(obj1, obj2) {
+    let keys = Object.keys(obj2);
+    for (let i=0;i<keys.length; i++) {
+        obj1[keys[i]] = obj2[keys[i]];
+    }
+    return obj1;
+}
+
+function getCurrentTime() {
+    var now= new Date();
+    var timestamp = now.getTime(); ;
+    var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
+    var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
+    return mDate;
 }
