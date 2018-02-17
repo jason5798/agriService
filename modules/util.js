@@ -8,6 +8,7 @@ var async  = require('async');
 var config = require('../config');
 var mysqlTool = require('./mysqlTool.js');
 var debug = isDebug();
+var axios = require('axios');
 
 module.exports = {
     decode,
@@ -17,13 +18,33 @@ module.exports = {
     checkDevice,
     parseMsgd,
     createMap,
+    checkAndParseDeviceToken,
     checkAndParseToken,
     checkAndParseMessage,
     checkFormData,
     isDebug,
     isAuth,
     addJSON,
-    getCurrentTime
+    getCurrentTime,
+    httpGet,
+    encodeBase64,
+    decodeBase64
+}
+
+function httpGet(url, username, password) {
+    const tok = username + ':' + password;
+    const hash = encodeBase64(tok);
+    const Basic = 'Basic ' + hash;
+    axios.get(url, {headers : { 'Authorization' : Basic }})
+    .then(response => {
+        console.log(response.data.url);
+        console.log(response.data.explanation);
+        return response.data;
+    })
+    .catch(error => {
+        console.log(error);
+        return error;
+    });
 }
 
 function isAuth () {
@@ -32,6 +53,14 @@ function isAuth () {
 
 function isDebug () {
     return config.debug;
+}
+
+function encodeBase64 (codeStr) {
+    return Buffer.from(codeStr).toString('base64');
+}
+
+function decodeBase64 (encodeStr) {
+    return Buffer.from(encodeStr, 'base64').toString('ascii');
 }
 
 function decode (dataEncrypt, key) {
@@ -82,6 +111,12 @@ function genToken(userInfo, dbUser, grps, callback) {
 }
 
 function getUserTokenArr (token) {
+    var tokenStr = decode(token, config.tokenKey);
+    var tArr = tokenStr.split(':');
+    return tArr;
+}
+
+function getDeviceTokenArr (token) {
     var tokenStr = decode(token, config.tokenKey);
     var tArr = tokenStr.split(':');
     return tArr;
@@ -253,6 +288,76 @@ function saveMsgToDB (msg) {
     });
 }
 
+function checkAndParseDeviceToken (token, res, callback) {
+	if (!token) {
+        res.send({
+            "responseCode" : '999',
+            "responseMsg" : 'Missing parameter'
+        });
+        return callback(true);
+	} else if (token.length < 1){
+        res.send({
+            "responseCode" : '999',
+            "responseMsg" : 'token length error'
+        });
+		return callback(true);
+	}
+		
+	// Decrypt 
+	console.log('token :\n' + token);
+    var ar = getDeviceTokenArr(token);
+    if (ar.length !== 5) {
+        res.send({
+            "responseCode" : '999',
+            "responseMsg" : 'Token error'
+        });
+        return callback(true);
+	}
+    var ts = ar[1];
+    var actInfo = {};
+    actInfo['mac'] = ar[0];
+    actInfo['ts'] = ar[1];
+    actInfo['deviceId'] = ar[2];
+    actInfo['grpId'] = ar[3];
+    actInfo['roleId'] = ar[4];
+    mysqlTool.getProperties('CERT_EXPIRE', function(err, result){
+        if(err) {
+            res.send({
+                "responseCode" : '404',
+                "responseMsg" : err
+            });
+            return callback(true);
+        }
+        if(result.length <= 0) {
+            res.send({
+                "responseCode" : '404',
+                "responseMsg" : 'No properties data'
+            });
+            return callback(true);
+        }
+        try {
+            var period = Number(result[0].p_value);
+            let d = new Date();
+            let nowSeconds = Math.round(d.getTime() / 1000);
+            let loginSeconds = parseInt(actInfo.ts);
+            let subVal = nowSeconds - loginSeconds;
+            if( subVal > period || subVal < 0 ){
+                res.send({
+                    "responseCode" : '404',
+                    "responseMsg" : 'Token expired'
+                });
+            }
+            return callback(null, actInfo);
+        } catch (error) {
+            res.send({
+                "responseCode" : '404',
+                "responseMsg" : error
+            });
+            return callback(true);
+        }
+    });
+}
+
 function checkAndParseToken (token, res, callback) {
 	if (!token) {
         res.send({
@@ -280,8 +385,6 @@ function checkAndParseToken (token, res, callback) {
     actInfo['roleId'] = Number(tArr[4]);
     actInfo['dataset'] = Number(tArr[5]);
     
-    //fun2 getProperties 不需要 fun1 getHistory 的資料
-    //但最後的結果要把 fun1 fun2 的資料整合起來
 	async.waterfall([
 		function(next){
 			mysqlTool.getHistory(token, function(err1, result1){
@@ -296,14 +399,7 @@ function checkAndParseToken (token, res, callback) {
 			});
 		},
 		function(rst1, next){
-			mysqlTool.getProperties(function(err2, result2){
-                if(result2.length <= 0) {
-                    res.send({
-                        "responseCode" : '404',
-                        "responseMsg" : 'No properties data'
-                    });
-                    return callback(true);
-                }
+			mysqlTool.getProperties('TOKEN_EXPIRE', function(err2, result2){
                 next(err2, [rst1, result2]);
 			});
 		}
@@ -389,8 +485,7 @@ function checkAndParseMessage (message, callback) {
         var obj = message;
     }
     var json = {"macAddr": obj.macAddr, "extra.frameCnt": obj.frameCnt};
-    //fun2 getProperties 不需要 fun1 getHistory 的資料
-    //但最後的結果要把 fun1 fun2 的資料整合起來
+    
 	async.series([
 		function(next){
 			mongoDevice.findLast(json, function(err1, result1){
