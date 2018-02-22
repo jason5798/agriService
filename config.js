@@ -10,10 +10,13 @@ config.baseurl = '/v1/';
 
 //Myaql Database
 config.database = 'cloudb';
-config.username = 'admin';
-config.password = 'gemtek1234';
+// config.username = 'admin';
+// config.password = 'gemtek1234';
+config.username = 'root'; 
+config.password = '12345678';
 config.table_prefix = 'api_';
-config.dbHost = '210.242.93.31';
+// config.dbHost = '210.242.93.31';
+config.dbHost = '127.0.0.1';
 config.dbPort = 3306;
 //Key
 config.tokenKey = 'gemtektoken';

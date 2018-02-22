@@ -340,6 +340,97 @@ module.exports = (function() {
 					
 	});
 
+	/* device mgm flow
+	   params: d (mac) , token
+	 */
+	router.post('/device', function(req, res) {
+		//Check params
+		var mac = req.body.d;
+		var token = req.body.token;
+		var actInfo = {};
+		
+        if (mac === undefined) {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+		} else {
+			let length = mac.length -12;
+			if (mac.length < 0) {
+				res.send({
+					"responseCode" : '404',
+					"responseMsg" : 'No device to add'
+				});
+				return;
+			}
+			mac = mac.slice(length);
+			mac = mac.toUpperCase();
+		}
+		actInfo.mac = mac;
+		actInfo.token = req.body.token;
+		// Jason add for temp test
+		actInfo.share = 0;
+		actInfo.org  = 'kqqhst';
+		actInfo.type = 'LoRa';
+
+		async.waterfall([
+			function(next){
+				util.checkAndParseToken(actInfo.token, res, function(err1, result1){
+					if (err1) {
+						return;
+					} else { 
+						//Token is ok
+						actInfo = util.addJSON(actInfo, result1.userInfo);
+						console.log('actInfo : ' + JSON.stringify(actInfo));
+						// check roleId
+						if (actInfo.roleId !== 1) {
+							// set no permission
+							res.send({
+								"responseCode" : '401',
+								"responseMsg" : 'no permission to access'
+							});
+							return;
+						}
+						let sqlStr = 'INSERT INTO `cloudb`.`api_device_info` ( `device_mac`, `device_name`, `device_status`, `device_type`, `device_share`, `device_IoT_org`, `device_IoT_type`, `createTime`, `createUser`) VALUES ( "'+actInfo.mac+'", "'+actInfo.mac+'", 0, "'+actInfo.type+'", '+actInfo.share+', "'+actInfo.org+'", "'+actInfo.type+'", current_time(), '+actInfo.userId+') '
+						console.log('/device post sqlStr :\n' + sqlStr);
+						next(err1, sqlStr);
+					}
+				});
+			},
+			function(rst1, next){
+				//Get user mapping from api_user_mapping
+				let obj = {}, sqlStr1 = '';
+				let newPayload = {}
+				mysqlTool.insert(rst1, function(err2, result2){
+					//Has user mapping or not?
+					if(result2) {
+						next(err2, result2);
+					} else {
+						res.send({
+							"responseCode" : '404',
+							"responseMsg" : 'No device data'
+						});
+						return;
+					}
+				});
+			}
+		], function(err, rst){
+			if(err) {
+				res.send({
+					"responseCode" : '999',
+					"responseMsg" : err
+				});
+			} else {
+				res.send({
+					"responseCode" : '000',
+					"responseMsg" : 'insert success'
+				});
+			}
+		});
+		
+					
+	});
+
 	/* module mgm flow
 	   params: dstatus (device_status) , token(user_token)
 	 */

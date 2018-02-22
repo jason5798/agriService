@@ -33,7 +33,7 @@ module.exports = (function() {
         async.waterfall([
             function(next){
                 mysqlTool.getUser(userInfo, function(err1, result1){
-                    if (result1.length === 0) {
+                    if (result1 === undefined || result1.length === 0) {
                         res.send({
                             "responseCode" : '404',
                             "responseMsg" : 'No user data'
