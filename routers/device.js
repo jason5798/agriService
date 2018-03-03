@@ -23,10 +23,13 @@ function findDevices (json, req, res) {
 		}
 		if (req.query.sort)
 			sort = req.query.sort;
-		if (req.query.from)
-			from = req.query.from;
-		if (req.query.to)
-			to = req.query.to;	
+		if (req.query.from){
+			from = util.getISODate(req.query.from);
+		}
+		if (req.query.to) {
+		    to = util.getISODate(req.query.to);
+		}
+				
 		
 		if(req.query.paginate) {
 			paginate = (req.query.paginate === 'true');
@@ -59,6 +62,7 @@ function findDevices (json, req, res) {
 				return false;
 			} else { 
 				//Token is ok
+				console.log(JSON.stringify(json));
 				mongoDevice.find(json, paginate, offset, page_limit, sort).then(function(data) {
 					// on fulfillment(已實現時)
 					if (paginate) {

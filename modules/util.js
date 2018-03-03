@@ -28,7 +28,9 @@ module.exports = {
     getCurrentTime,
     httpGet,
     encodeBase64,
-    decodeBase64
+    decodeBase64,
+    DateTimezone,
+    getISODate
 }
 
 function httpGet(url, username, password) {
@@ -579,4 +581,22 @@ function getCurrentTime() {
     var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
     var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
     return mDate;
+}
+
+function DateTimezone(offset) {
+
+    // 建立現在時間的物件
+    var d = new Date();
+    
+    // 取得 UTC time
+    var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+
+    // 新增不同時區的日期資料
+    return new Date(utc + (3600000*offset));
+
+}
+
+function getISODate(dateStr) {
+    var newDate = new Date(dateStr);
+	return newDate.toISOString();
 }
