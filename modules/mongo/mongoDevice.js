@@ -58,19 +58,24 @@ function findLast (json,callback) {
     });
 }
 
-function find(json, _paginate, _offset, _limit) {
+function find(json, _paginate, _offset, _limit,_sort) {
+    var sort = {recv: -1};
+    if(_sort === 'asc') {
+        sort = {recv: 1};
+    }
     return new Promise(function (resolve, reject) {
         if (_paginate === false) {
-            DeviceModel.find(json).exec(function(err,result){
+            DeviceModel.find(json).sort(sort).exec(function(err,result){
                 if(err){
                     reject(err)
                 }else{
                     resolve(result);
                 }
             });
-        } else {
+        } else { 
+            
             var options = {   
-                    // sort: { date: -1 },
+                    sort: sort,
                     offset: _offset,
                     limit: _limit
                 };

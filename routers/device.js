@@ -13,6 +13,7 @@ function findDevices (json, req, res) {
 	var token = req.query.token;		
 		var paginate = config.paginate;
 		var page_limit = config.page_limit;
+		var sort = 'desc';
 		var from = null, to = null;
 		if (req.query.macAddr) {
 			json['macAddr'] = Number(req.query.fport);
@@ -20,7 +21,8 @@ function findDevices (json, req, res) {
 		if (req.query.fport) {
 			json['extra.fport'] = Number(req.query.fport);
 		}
-
+		if (req.query.sort)
+			sort = req.query.sort;
 		if (req.query.from)
 			from = req.query.from;
 		if (req.query.to)
@@ -57,7 +59,7 @@ function findDevices (json, req, res) {
 				return false;
 			} else { 
 				//Token is ok
-				mongoDevice.find(json, paginate, offset, page_limit).then(function(data) {
+				mongoDevice.find(json, paginate, offset, page_limit, sort).then(function(data) {
 					// on fulfillment(已實現時)
 					if (paginate) {
 						console.log('find devices : ' + data.docs.length);
@@ -108,7 +110,7 @@ module.exports = (function() {
 		findDevices(json, req, res);
 	});
 
-	router.get('/devices/:mac', function(req, res) {
+	/* router.get('/devices/:mac', function(req, res) {
 		var json = {};
 		var mac = req.params.mac;
 		if (mac.length === 0 ) {
@@ -120,7 +122,7 @@ module.exports = (function() {
 		}
 		json.macAddr = mac;
 		findDevices(json, req, res);
-	});
+	}); */
 		
 
 	/* cert flow

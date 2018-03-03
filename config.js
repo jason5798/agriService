@@ -26,6 +26,7 @@ config.mongoDB = 'mongodb://210.242.93.31/agri';
 //Pagination
 config.paginate = true;
 config.page_limit = 10;
+config.sort = 'desc';
 //Zone
 config.timezone = 'Asia/Taipei';
 //Debug
