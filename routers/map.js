@@ -51,7 +51,7 @@ module.exports = (function() {
 			});
 			return false;
 		}
-        var json = {'type': type};
+        var json = {'deviceType': type};
 		
         util.checkAndParseToken(token, res,function(err,result){
 			if (err) {

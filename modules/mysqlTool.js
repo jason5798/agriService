@@ -37,8 +37,8 @@ function insert (sqlStr, callback) {
 
 function update (sqlStr, callback) {
     sequelize.query(sqlStr, { type: sequelize.QueryTypes.UPDATE})
-    .then(function(result) {
-        return callback(null, result);
+    .then(function() {
+        return callback(null, 'update success');
     })
     .catch( function(err) {
         return callback(err);
