@@ -597,6 +597,8 @@ function DateTimezone(offset) {
 }
 
 function getISODate(dateStr) {
-    var newDate = new Date(dateStr);
-	return newDate.toISOString();
+    var d = new Date(dateStr); 
+    d.setTime(d.getTime() + (d.getTimezoneOffset() *60*1000)); 
+    var utcDate = d.toISOString();
+	return utcDate;
 }
