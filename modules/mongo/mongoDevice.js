@@ -46,13 +46,13 @@ function create (obj,callback) {
     });
 }
 
-function findLast (json,callback) {
+function findLast (json) {
     return new Promise(function (resolve, reject) {
         DeviceModel.find(json).sort({recv: -1}).limit(1).exec(function(err,result){
             if(err){
-                reject(callback(err));
+                reject(err);
             }else{
-                resolve(callback(null, result));
+                resolve(result);
             }
         });
     });

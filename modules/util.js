@@ -30,7 +30,8 @@ module.exports = {
     encodeBase64,
     decodeBase64,
     DateTimezone,
-    getISODate
+    getISODate,
+    getMacString
 }
 
 function httpGet(url, username, password) {
@@ -598,7 +599,22 @@ function DateTimezone(offset) {
 
 function getISODate(dateStr) {
     var d = new Date(dateStr); 
-    d.setTime(d.getTime() + (d.getTimezoneOffset() *60*1000)); 
+    
+    
+    console.log('d : ' + d.toISOString());
+    console.log('offset : ' + d.getTimezoneOffset()/60 );
+    
+    /* d.setTime(d.getTime() + (d.getTimezoneOffset() *60*1000)); 
+    console.log('d + offset : ' + d.toISOString());
     var utcDate = d.toISOString();
-	return utcDate;
+    console.log('d utc : ' + utcDate);
+    return utcDate; */
+    return d.toISOString();
+}
+
+function getMacString(mac) {
+    if(mac.length === 8) {
+        mac = '00000000' + mac;
+    }
+    return mac.toLowerCase();
 }
