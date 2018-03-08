@@ -13,7 +13,7 @@ module.exports = (function() {
 
     router.post('/login/:cp', function(req, res) {
 		//Check params
-		var ip = req.get("x-client-ip");
+		var ip = '127.0.0.1';
 		if(ip.indexOf(",") != -1){
 			let ar = ip.split(',')
 			ip = ar[0]
@@ -29,7 +29,7 @@ module.exports = (function() {
 		}
 		userInfo.ip = ip;
 		userInfo.cp = cp;
-		
+
         async.waterfall([
             function(next){
                 mysqlTool.getUser(userInfo, function(err1, result1){
@@ -40,7 +40,7 @@ module.exports = (function() {
                         });
                         return;
 					}
-					// Decrypt 
+					// Decrypt
 					var dbUser = result1[0];
 					var userPwd = dbUser.userPwd;
 					var decryptPwd = util.decode(userPwd, config.generalKey);
@@ -91,9 +91,9 @@ module.exports = (function() {
 					"responseCode" : '999',
 					"responseMsg" : 'user block'
 				});
-			} 	    
+			}
 		});
-        
+
 	});
 
 	router.post('/logout', function(req, res) {
@@ -119,7 +119,7 @@ module.exports = (function() {
 		async.waterfall([
 			function(next){
 				mysqlTool.query(sqlStr1, function(err1, result1){
-					next(err1, result1);  
+					next(err1, result1);
 				});
 			},
 			function(rst1, next){
@@ -228,7 +228,7 @@ module.exports = (function() {
 					role = 29;
 				}
 				if(userInfo.cp === 8){
-					role = 15; 
+					role = 15;
 				}
 				let sqlStr5 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ((select cpId from api_cp where cpName = "'+userInfo.cp+'"), '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, "'+util.getCurrentTime()+'", 1)'
 				console.log('insert new user sql :\n' + sqlStr5);
@@ -258,7 +258,7 @@ module.exports = (function() {
 		});
 	});
 
-	//Get users 
+	//Get users
 	router.get('/users', function(req, res) {
 		var token = req.query.token;
 		var search = req.query.search;
@@ -272,7 +272,7 @@ module.exports = (function() {
 			to = req.query.to;
 		//Pagination settings
 		var paginate = config.paginate;
-		var page_limit = config.page_limit;	
+		var page_limit = config.page_limit;
 
 		if(req.query.paginate)
 			paginate = (req.query.paginate === 'true');
@@ -299,7 +299,7 @@ module.exports = (function() {
 				util.checkAndParseToken(token, res,function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						console.log('userInfo : ' + JSON.stringify(result1))
 						let userInfo = result1.userInfo;
@@ -321,8 +321,8 @@ module.exports = (function() {
 								});
 								return;
 							}
-						}	
-						next(err1, sqlStr); 	  
+						}
+						next(err1, sqlStr);
 					}
 				});
 			},
@@ -370,7 +370,7 @@ module.exports = (function() {
 				util.checkAndParseToken(req.body.token, res,function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo))
@@ -381,7 +381,7 @@ module.exports = (function() {
 							next(err1, sqlStr);
 						} else {
 							if(actInfo.dataset === 0 || actInfo.dataset === 1) {
-								//All user query		
+								//All user query
 								sqlStr = 'UPDATE api_user SET `cpId` = '+actInfo.catId+', `roleId` = '+actInfo.roleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId +' and cpId = '+actInfo.cpId;
 								console.log('put /users sqlStr :\n' + sqlStr);
 								mysqlTool.update(sqlStr, function(err, result){
@@ -395,7 +395,7 @@ module.exports = (function() {
 											"responseCode" : '000',
 											"responseMsg" : 'updata success'
 										});
-									}	
+									}
 								});
 							} else {
 								res.send({
@@ -404,8 +404,8 @@ module.exports = (function() {
 								});
 								return;
 							}
-						}	
-						 	  
+						}
+
 					}
 				});
 			},
@@ -494,7 +494,7 @@ module.exports = (function() {
 				util.checkAndParseToken(req.body.token, res,function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo))
@@ -513,7 +513,7 @@ module.exports = (function() {
 								return;
 							}
 						}
-						next(err1, sqlStr);	  
+						next(err1, sqlStr);
 					}
 				});
 			},
@@ -541,7 +541,7 @@ module.exports = (function() {
 
 	//For taipei query
 	router.get('/:mac', function(req, res) {
-	
+
 		var mac = req.params.mac;
 		if (mac === undefined ) {
 			res.send({
@@ -554,7 +554,7 @@ module.exports = (function() {
 		if (req.query.from)
 			from = req.query.from;
 		if (req.query.to)
-			to = req.query.to;	
+			to = req.query.to;
 
 		if(req.query.paginate)
 			paginate = (req.query.paginate === 'true');
@@ -608,8 +608,8 @@ module.exports = (function() {
 			res.send({
 				"responseCode" : '999',
 				"responseMsg" : reason
-			}); 
-		}); 
+			});
+		});
 	});
 
 	return router;
@@ -623,7 +623,7 @@ function toSaveCSVFile(data, page, limit) {
 	for(let i=0; i<data.docs.length;i++) {
 		console.log('data :' + JSON.stringify(data.docs[i]));
 		let doc = data.docs[i];
-		let obj = {}; 
+		let obj = {};
 		obj.item = i + item;
 		obj.macAddr = doc.macAddr;
 		obj.date = doc.date;
@@ -637,7 +637,7 @@ function toSaveCSVFile(data, page, limit) {
 		if (err) throw err;
 		console.log('file saved');
 	});
-	  
+
 }
 
 //Combine user information for login
