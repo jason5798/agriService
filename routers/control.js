@@ -28,12 +28,19 @@ module.exports = (function() {
         }
         util.checkAndParseToken(token, res, function(err,result){
 			if (err) {
-				res.send({err});
+				res.send({
+					"responseCode" : '999',
+					"responseMsg" : err
+				});
 				return false;
 			} else { 
 				//Token is ok
                 console.log('post /control : user token vrerify is OK');
-                mqttClient.sendMessage(topic,message);		  
+				mqttClient.sendMessage(topic,message);	
+				res.send({
+					"responseCode" : '000',
+					"responseMsg" : 'send message ok'
+				});	  
 			}
 		});
     });
