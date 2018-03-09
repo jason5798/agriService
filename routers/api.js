@@ -6,9 +6,6 @@ module.exports = (function() {
 	var Sequelize = require('sequelize');
 	var config = require('../config');
 	var dbHost = config.dbHost;
-	if (!config.isLocalDB) {
-		dbHost = config.test_dbHost;
-	}
 
 	//Initialize database
 	var sequelize = new Sequelize(config.database, config.username, config.password, {

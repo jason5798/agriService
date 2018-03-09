@@ -118,7 +118,7 @@ function findDevices (json, req, res) {
 module.exports = (function() {
 	
 	//Read 
-	router.get('/devices', function(req, res) {
+	router.get('/event', function(req, res) {
 		//User Token for auth
 		var json = {};
 		findDevices(json, req, res);
@@ -623,8 +623,10 @@ module.exports = (function() {
 								console.log('result : ' + JSON.stringify(result));
 							if(result && result.length > 0){
 								d['LoRaAP'] = result[0].extra.gwid;
+								d['fport'] = result[0].extra.fport;
 							}else{
 								d['LoRaAP'] = 'NA';
+								d['fport'] = 0;
 							}
 							gwArray.push(d);
 						} catch (error) {

@@ -10,6 +10,7 @@ var api = require('./routers/api.js'),
 	roles = require('./routers/roles.js'),
 	func = require('./routers/func.js'),
 	sys = require('./routers/sys.js'),
+	control = require('./routers/control.js'),
     device = require('./routers/device.js');
 var config = require('./config');
 var async   = require('async'),
@@ -53,6 +54,7 @@ app.use('/roles' + config.baseurl, roles);//Role : user limit
 app.use('/func' + config.baseurl, func);//function : WEB function enable or not
 app.use('/sys' + config.baseurl, sys);
 app.use('/device' + config.baseurl, device);
+app.use('/control' + config.baseurl, control);
 
 api = require('./routers/api.js'),
 

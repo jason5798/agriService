@@ -365,7 +365,7 @@ function checkAndParseToken (token, res, callback) {
 	if (!token) {
         res.send({
             "responseCode" : '999',
-            "responseMsg" : 'Missing parameter'
+            "responseMsg" : 'Missing token'
         });
         return callback(true);
 	} else if (token.length < 1){
@@ -604,9 +604,9 @@ function getISODate(dateStr) {
     console.log('d : ' + d.toISOString());
     console.log('offset : ' + d.getTimezoneOffset()/60 );
     
-    /* d.setTime(d.getTime() + (d.getTimezoneOffset() *60*1000)); 
+    d.setTime(d.getTime() + ( (-d.getTimezoneOffset()-480 ) *60*1000)); 
     console.log('d + offset : ' + d.toISOString());
-    var utcDate = d.toISOString();
+    /*var utcDate = d.toISOString();
     console.log('d utc : ' + utcDate);
     return utcDate; */
     return d.toISOString();
