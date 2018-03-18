@@ -548,7 +548,11 @@ function checkFormData (req, checkArr) {
             console.log('index : ' + index + ', key : ' + key );
             if(checkArr.indexOf(key) !== -1) {
                 if(key === 'map' || key === 'fieldName') {
-                    json[key] = JSON.parse(req.body[key]);
+                    if (typeof(req.body[key]) !== 'string') {
+                        json[key] = req.body[key];
+                    } else {
+                        json[key] = JSON.parse(req.body[key]);
+                    }
                 } else {
                     json[key] = req.body[key];
                 }

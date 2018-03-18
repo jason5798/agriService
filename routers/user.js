@@ -30,6 +30,13 @@ module.exports = (function() {
         async.waterfall([
             function(next){
                 mysqlTool.getUser(userInfo, function(err1, result1){
+					if (err1) {
+						res.send({
+                            "responseCode" : '408',
+                            "responseMsg" : err1.message
+                        });
+                        return;
+					}
                     if (result1 === undefined || result1.length === 0) {
                         res.send({
                             "responseCode" : '404',

@@ -91,7 +91,7 @@ module.exports = (function() {
 				"responseMsg" : obj
 			});
         }
-        util.checkAndParseToken(token, res,function(err,result){
+        util.checkAndParseToken(req.body.token, res,function(err,result){
 			if (err) {
 				return;
 			} else { 
@@ -129,7 +129,7 @@ module.exports = (function() {
 				"responseMsg" : obj
 			});
 		}
-		json = {};
+		var json = {};
 		if (req.body.map) {
 			json.map = req.body.map;
 		}
@@ -144,7 +144,7 @@ module.exports = (function() {
 
 		json.updateTime = new Date();
 
-        util.checkAndParseToken(token, res, function(err,result){
+        util.checkAndParseToken(req.body.token, res, function(err,result){
 			if (err) {
 				return;
 			} else { 
@@ -170,15 +170,13 @@ module.exports = (function() {
 
 	//Delete by ID 
 	router.delete('/', function(req, res) {
-		var checkArr = ['token','deviceType'];
-		var obj = util.checkFormData(req, checkArr);
-		if (obj === null) {
+		if (req.body.deviceType === null) {
             res.send({
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
 		}
-		util.checkAndParseToken(token, res,function(err,result){
+		util.checkAndParseToken(req.body.token, res,function(err,result){
 			if (err) {
 				return;
 			} else { 
