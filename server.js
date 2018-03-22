@@ -15,17 +15,19 @@ var api = require('./routers/api.js'),
 var config = require('./config');
 var async   = require('async'),
 	request = require('request');
-// Authentication module. 
+// Authentication module.
 var auth = require('http-auth');
 var morgan = require('morgan');
+var cors = require('cors');
 var basic = auth.basic({
 	realm: "Node JS API",
-    file: "./keys.htpasswd" // gevorg:gpass, Sarah:testpass ... 
+    file: "./keys.htpasswd" // gevorg:gpass, Sarah:testpass ...
 });
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(morgan('dev')); // log every request to the console
+app.use(cors());
 
 if(config.auth == true) {
 	app.use(auth.connect(basic));
@@ -42,7 +44,7 @@ app.all('/*', function(req, res, next) {
 });
 
 router.get('/', function(req, res) {
-	res.json({ message: 'MQTT Broker and API!' });   
+	res.json({ message: 'MQTT Broker and API!' });
 });
 
 app.use('/user'  + config.baseurl, user);//Login,logout,User
@@ -70,7 +72,7 @@ var server = app.listen(config.port, function () {
 	console.log(server.address());
 	var host = server.address().address;
 	var port = server.address().port;
-	
+
 	console.log('Server listening at http://localhost:%s', port);
 	console.log('api url : http://localhost:8000/api/:table');
 });

@@ -10,12 +10,12 @@ var fs = require('fs');
 var axios = require('axios');
 
 function findDevices (json, req, res) {
-	var token = req.query.token;		
+	var token = req.query.token;
 		var paginate = config.paginate;
 		var page_limit = config.page_limit;
 		var sort = 'desc';
 		var from = null, to = null;
-		
+
 		if (req.query.macAddr) {
 			if (req.query.macAddr.length === 0 ) {
 				res.send({
@@ -32,7 +32,7 @@ function findDevices (json, req, res) {
 		if (req.query.sort) {
 			sort = req.query.sort;
 		}
-			
+
 		if (req.query.from){
 			from = util.getISODate(req.query.from);
 		}
@@ -40,15 +40,15 @@ function findDevices (json, req, res) {
 		if (req.query.to) {
 		    to = util.getISODate(req.query.to);
 		}
-				
+
 		if(req.query.paginate) {
 			paginate = (req.query.paginate === 'true');
 		}
 
 		if (req.query.limit) {
 			page_limit = Number(req.query.limit);
-		} 
-		
+		}
+
 		var page = 1;
 		if(req.query.page)
 			page = req.query.page;
@@ -70,7 +70,7 @@ function findDevices (json, req, res) {
 			if (err) {
 				res.send({err});
 				return false;
-			} else { 
+			} else {
 				//Token is ok
 				console.log('**** query json :\n'+JSON.stringify(json));
 				mongoDevice.find(json, paginate, offset, page_limit, sort).then(function(data) {
@@ -80,7 +80,7 @@ function findDevices (json, req, res) {
 					} else {
 						console.log('find devices : ' + data.length);
 					}
-					
+
 					res.status(200);
 					res.setHeader('Content-Type', 'application/json');
 					if (paginate) {
@@ -107,8 +107,8 @@ function findDevices (json, req, res) {
 					res.send({
 						"responseCode" : '999',
 						"responseMsg" : reason
-					}); 
-				}); 		  
+					});
+				});
 			}
 		});
 }
@@ -116,8 +116,8 @@ function findDevices (json, req, res) {
 //Mysql database API
 
 module.exports = (function() {
-	
-	//Read 
+
+	//Read
 	router.get('/event', function(req, res) {
 		//User Token for auth
 		var json = {};
@@ -144,7 +144,7 @@ module.exports = (function() {
 		}
 		var json = {};
 		json['macAddr'] = util.getMacString(mac);
-		
+
 		mongoDevice.findLast(json).then(function(data) {
 			// on fulfillment(已實現時)
 			res.json({
@@ -156,16 +156,16 @@ module.exports = (function() {
 			res.send({
 				"responseCode" : '999',
 				"responseMsg" : reason
-			}); 
+			});
 		});
 	});
-		
+
 	/* cert flow
 	   params: d (mac)
 	 */
 	router.post('/cert', function(req, res) {
 		//Check params
-		
+
 		var mac = req.body.d;
         if (mac === undefined) {
             res.send({
@@ -200,7 +200,7 @@ module.exports = (function() {
 					});
 					return;
 				}
-				// Decrypt 
+				// Decrypt
 				var deviceInfo = result[0];
 				let cpId = 'LoRa'
 				let roleId = 'device'
@@ -214,7 +214,7 @@ module.exports = (function() {
 					"token": decryptPwd,
 					"d" : deviceInfo.device_mac
 				});
-			});					
+			});
 	});
 
 	/* config flow
@@ -225,7 +225,7 @@ module.exports = (function() {
 		var mac = req.body.d;
 		var token = req.body.token;
 		var actInfo = {};
-		
+
         if (mac === undefined) {
             res.send({
 				"responseCode" : '999',
@@ -251,7 +251,7 @@ module.exports = (function() {
 				util.checkAndParseDeviceToken(actInfo.token, res, function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						actInfo = util.addJSON(actInfo, result1);
 						console.log('actInfo : ' + JSON.stringify(actInfo))
@@ -274,9 +274,9 @@ module.exports = (function() {
 						newPayload['deviceType'] = result2[0].device_IoT_type ;
 						if(result2[0].device_IoT_secret){
 							newPayload['authToken'] = result2[0].device_IoT_secret;
-						} 
+						}
 						if (result2[0].device_status === 2) {
-							newPayload['IoTid'] = 'LoRa';   
+							newPayload['IoTid'] = 'LoRa';
 						} else if (result2[0].device_status === 1) {
 							newPayload['IoTid'] = 'default';
 						} else if (result2[0].device_status === 3) {
@@ -306,7 +306,7 @@ module.exports = (function() {
 			},
 			function(rst2, next){
 				//Check device is exist or not
-				
+
 			},
 			function(rst3, next){
 				//Update User for oa
@@ -329,8 +329,8 @@ module.exports = (function() {
 				});
 			}
 		});
-		
-					
+
+
 	});
 
 	/* active flow
@@ -341,7 +341,7 @@ module.exports = (function() {
 		var mac = req.body.d;
 		var token = req.body.token;
 		var actInfo = {};
-		
+
         if (mac === undefined) {
             res.send({
 				"responseCode" : '999',
@@ -367,7 +367,7 @@ module.exports = (function() {
 				util.checkAndParseToken(actInfo.token, res, function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo));
@@ -416,8 +416,8 @@ module.exports = (function() {
 				});
 			}
 		});
-		
-					
+
+
 	});
 
 	/* device mgm flow
@@ -428,7 +428,7 @@ module.exports = (function() {
 		var mac = req.body.d;
 		var token = req.body.token;
 		var actInfo = {};
-		
+
         if (mac === undefined) {
             res.send({
 				"responseCode" : '999',
@@ -458,7 +458,7 @@ module.exports = (function() {
 				util.checkAndParseToken(actInfo.token, res, function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo));
@@ -507,8 +507,8 @@ module.exports = (function() {
 				});
 			}
 		});
-		
-					
+
+
 	});
 
 	/* module mgm flow
@@ -519,13 +519,13 @@ module.exports = (function() {
 		let actInfo = {};
 		actInfo.dstatus = req.params.dststus;
 		actInfo.token = req.query.token;
-		
+
 		async.waterfall([
 			function(next){
 				util.checkAndParseToken(actInfo.token, res, function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						//Token is ok
 						let sqlStr = '';
@@ -586,7 +586,7 @@ module.exports = (function() {
 				const tok = username + ':' + password;
 				const hash = util.encodeBase64(tok);
 				const Basic = 'Basic ' + hash;
-				
+
 				deviceList.forEach(function(device){
 					let mac = device.device_mac;
 					console.log('mac : ' + mac);
@@ -604,7 +604,7 @@ module.exports = (function() {
 					} catch (error) {
 						console.log('???? get AP of loraM err: ' + err);
 					}
-					
+
 				});
 				axios.all(promises).then(function(results) {
 					for(let i = 0 ; i < deviceList.length ; i++){
@@ -668,13 +668,13 @@ module.exports = (function() {
 		let actInfo = {};
 		actInfo.dstatus = req.params.dststus;
 		actInfo.token = req.query.token;
-		
+
 		async.waterfall([
 			function(next){
 				util.checkAndParseToken(actInfo.token, res, function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						//Token is ok
 						let sqlStr = '';
@@ -733,7 +733,7 @@ module.exports = (function() {
 					} catch (error) {
 						console.log('???? get AP of loraM err: ' + err);
 					}
-					
+
 				});
 				axios.all(promises).then(function(results) {
 					for(let i = 0 ; i < deviceList.length ; i++){
@@ -789,7 +789,7 @@ function toSaveCSVFile(data, page, limit) {
 	for(let i=0; i<data.docs.length;i++) {
 		console.log('data :' + JSON.stringify(data.docs[i]));
 		let doc = data.docs[i];
-		let obj = {}; 
+		let obj = {};
 		obj.item = i + item;
 		obj.macAddr = doc.macAddr;
 		obj.date = doc.date;
@@ -803,6 +803,6 @@ function toSaveCSVFile(data, page, limit) {
 		if (err) throw err;
 		console.log('file saved');
 	});
-	  
+
 }
-     
+
