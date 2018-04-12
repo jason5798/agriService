@@ -19,6 +19,7 @@ var async   = require('async'),
 var auth = require('http-auth');
 var morgan = require('morgan');
 var cors = require('cors');
+var mqttSubClient = require('./modules/mqttSubClient.js');
 var basic = auth.basic({
 	realm: "Node JS API",
     file: "./keys.htpasswd" // gevorg:gpass, Sarah:testpass ...

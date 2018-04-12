@@ -85,6 +85,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
         } else if (typeof(obj) === 'string') {
             res.send({
 				"responseCode" : '999',
@@ -123,6 +124,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
         } else if (typeof(obj) === 'string') {
             res.send({
 				"responseCode" : '999',
@@ -175,6 +177,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
 		}
 		util.checkAndParseToken(req.body.token, res,function(err,result){
 			if (err) {

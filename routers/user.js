@@ -23,6 +23,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
 		}
 		userInfo.ip = ip;
 		userInfo.cp = cp;
@@ -371,6 +372,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
 		}
 
         async.waterfall([
@@ -495,6 +497,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
 		}
 
         async.waterfall([

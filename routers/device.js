@@ -172,6 +172,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
 		} else {
 			let length = mac.length -12;
 			if (mac.length < 0) {
@@ -231,6 +232,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
 		} else {
 			let length = mac.length -12;
 			if (mac.length < 0) {
@@ -347,6 +349,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
 		} else {
 			let length = mac.length -12;
 			if (mac.length < 0) {
@@ -427,6 +430,7 @@ module.exports = (function() {
 		//Check params
 		var mac = req.body.d;
 		var token = req.body.token;
+		var type =  req.body.typen;
 		var actInfo = {};
 
         if (mac === undefined) {
@@ -434,6 +438,7 @@ module.exports = (function() {
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
 		} else {
 			let length = mac.length -12;
 			if (mac.length < 0) {
@@ -450,8 +455,7 @@ module.exports = (function() {
 		actInfo.token = req.body.token;
 		// Jason add for temp test
 		actInfo.share = 0;
-		actInfo.org  = 'kqqhst';
-		actInfo.type = 'LoRa';
+		actInfo.org  = '';
 
 		async.waterfall([
 			function(next){
@@ -507,8 +511,143 @@ module.exports = (function() {
 				});
 			}
 		});
+	});
 
+	router.put('/device', function(req, res) {
+		//Check params
+		var mac = req.body.d;
+		var name = req.body.name;
+		var token = req.body.token;
+		var actInfo = {};
 
+        if (mac === undefined) {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
+		} /* else {
+			let length = mac.length -12;
+			if (mac.length < 0) {
+				res.send({
+					"responseCode" : '404',
+					"responseMsg" : 'No device to add'
+				});
+				return;
+			}
+			mac = mac.slice(length);
+			mac = mac.toUpperCase();
+		} */
+		actInfo.name = name;
+		actInfo.mac = mac;
+		actInfo.token = req.body.token;
+		// Jason add for temp test
+
+		async.waterfall([
+			function(next){
+				util.checkAndParseToken(actInfo.token, res, function(err1, result1){
+					if (err1) {
+						return;
+					} else {
+						//Token is ok
+						actInfo = util.addJSON(actInfo, result1.userInfo);
+						console.log('actInfo : ' + JSON.stringify(actInfo));
+						// check roleId
+						if (actInfo.roleId !== 1 && actInfo.roleId !== 36) {
+							// set no permission
+							res.send({
+								"responseCode" : '401',
+								"responseMsg" : 'no permission to access'
+							});
+							return;
+						}
+						var sqlStr = 'UPDATE api_device_info SET `device_name` = "'+actInfo.name+'", `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `device_mac` = "'+actInfo.mac+'"';
+						console.log('/device post sqlStr :\n' + sqlStr);
+						next(err1, sqlStr);
+					}
+				});
+			},
+			function(rst1, next){
+				//Get user mapping from api_user_mapping
+				let obj = {}, sqlStr1 = '';
+				let newPayload = {}
+				mysqlTool.update(rst1, function(err2, result2){
+					//Has user mapping or not?
+					if(result2) {
+						next(err2, result2);
+					} else {
+						res.send({
+							"responseCode" : '404',
+							"responseMsg" : 'No device data'
+						});
+						return;
+					}
+				});
+			}
+		], function(err, rst){
+			if(err) {
+				res.send({
+					"responseCode" : '999',
+					"responseMsg" : err
+				});
+			} else {
+				res.send({
+					"responseCode" : '000',
+					"responseMsg" : 'update success'
+				});
+			}
+		});
+	});
+
+	//delete user
+	router.delete('/device', function(req, res) {
+		//Check params
+		var checkArr = ['token','delDeviceId'];
+        var actInfo = util.checkFormData(req, checkArr);
+        if (actInfo === null) {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
+		}
+
+        async.waterfall([
+			function(next){
+				util.checkAndParseToken(req.body.token, res,function(err1, result1){
+					if (err1) {
+						return;
+					} else { 
+						//Token is ok
+						actInfo = util.addJSON(actInfo, result1.userInfo);
+						console.log('actInfo : ' + JSON.stringify(actInfo))
+						let sqlStr = '';
+						sqlStr = 'delete from api_device_info where device_id = "'+actInfo.delDeviceId +'"';
+						console.log('delete device sql : +\n' + sqlStr);
+						next(err1, sqlStr);	  
+					}
+				});
+			},
+			function(rst1, next){
+				//Get user mapping from api_user_mapping
+				let obj = {}, sqlStr1 = '';
+				mysqlTool.remove(rst1, function(err2, result2){
+					next(err2, result2);
+				});
+			}
+		], function(err, rst){
+			if(err) {
+				res.send({
+					"responseCode" : '404',
+					"responseMsg" : 'delete fail'
+				});
+			} else {
+				res.send({
+					"responseCode" : '000',
+					"responseMsg" : 'delete success'
+				});
+			}
+		});
 	});
 
 	/* module mgm flow

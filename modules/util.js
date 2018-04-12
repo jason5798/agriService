@@ -465,7 +465,7 @@ function checkAndParseToken (token, res, callback) {
         } catch (error) {
             res.send({
                 "responseCode" : '404',
-                "responseMsg" : error
+                "responseMsg" : error.message
             });
             return callback(true);
         }

@@ -30,6 +30,7 @@ module.exports = (function() {
 				"responseCode" : '999', 
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
         }
     });
 
@@ -42,6 +43,7 @@ module.exports = (function() {
 				"responseCode" : '999', 
 				"responseMsg" : 'Missing parameter'
 			});
+			return;
         }
     });
 
