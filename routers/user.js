@@ -274,35 +274,7 @@ module.exports = (function() {
 		if (search) {
 			search = util.decode(search, config.generalKey);
 		}
-		/*var from = null, to = null;
-		if (req.query.from)
-			from = req.query.from;
-		if (req.query.to)
-			to = req.query.to;
-		//Pagination settings
-		var paginate = config.paginate;
-		var page_limit = config.page_limit;	
-
-		if(req.query.paginate)
-			paginate = (req.query.paginate === 'true');
-		if(req.query.limit)
-			page_limit = req.query.limit;
-		var page = 1;
-		if(req.query.page)
-			page = req.query.page;
-		var offset = (page-1) * page_limit;
-
-		//Calculate pages
-		var next = Number(page)+1;
-		if(page != 1)
-			var previous = Number(page)-1;
-		else
-			var previous = Number(page);
-		var json = {macAddr: mac};
-		if(from !== null && to !== null) {
-			json.recv = {$gte: from, $lte: to};
-		}*/
-		// Check token then get devices
+		
 		async.waterfall([
 			function(next){
 				util.checkAndParseToken(token, res,function(err1, result1){
@@ -374,6 +346,8 @@ module.exports = (function() {
 			});
 			return;
 		}
+		// Jason add for fix roleId be changed by login user token roleId
+		actInfo.mRoleId = actInfo.roleId
 
         async.waterfall([
 			function(next){
@@ -390,9 +364,10 @@ module.exports = (function() {
 							sqlStr = 'select * from api_user_mapping where userId = '+actInfo.mUserId
 							next(err1, sqlStr);
 						} else {
+							// OAFlg = false
 							if(actInfo.dataset === 0 || actInfo.dataset === 1) {
 								//All user query		
-								sqlStr = 'UPDATE api_user SET `cpId` = '+actInfo.catId+', `roleId` = '+actInfo.roleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId +' and cpId = '+actInfo.cpId;
+								sqlStr = 'UPDATE api_user SET `cpId` = '+actInfo.catId+', `roleId` = '+actInfo.mRoleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId +' and cpId = '+actInfo.cpId;
 								console.log('put /users sqlStr :\n' + sqlStr);
 								mysqlTool.update(sqlStr, function(err, result){
 									if (err) {
@@ -420,6 +395,7 @@ module.exports = (function() {
 				});
 			},
 			function(rst1, next){
+				//OAFlg = true
 				//Get user mapping from api_user_mapping
 				let obj = {}, sqlStr1 = '';
 				mysqlTool.query(rst1, function(err2, result2){
@@ -490,19 +466,21 @@ module.exports = (function() {
 	//delete user
 	router.delete('/users', function(req, res) {
 		//Check params
-		var checkArr = ['token','delUserId'];
-        var actInfo = util.checkFormData(req, checkArr);
-        if (actInfo === null) {
+		var actInfo = {};
+		var token = req.query.token;
+		var delUserId = req.query.delUserId;
+        if (delUserId === null) {
             res.send({
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
 		}
+		actInfo.delUserId = delUserId;
 
         async.waterfall([
 			function(next){
-				util.checkAndParseToken(req.body.token, res,function(err1, result1){
+				util.checkAndParseToken(token, res,function(err1, result1){
 					if (err1) {
 						return;
 					} else { 
