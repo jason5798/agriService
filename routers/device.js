@@ -173,7 +173,7 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
-		} else {
+		} /* else {
 			let length = mac.length -12;
 			if (mac.length < 0) {
 				res.send({
@@ -184,7 +184,7 @@ module.exports = (function() {
 			}
 			mac = mac.slice(length);
 			mac = mac.toUpperCase();
-		}
+		} */
 		let sqlStr = 'select * from api_device_info where device_mac = "' + mac +'"'
 			mysqlTool.query(sqlStr, function(err, result){
 				if(err) {
@@ -233,18 +233,7 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
-		} else {
-			let length = mac.length -12;
-			if (mac.length < 0) {
-				res.send({
-					"responseCode" : '999',
-					"responseMsg" : 'mac lenth error'
-				});
-				return;
-			}
-			mac = mac.slice(length);
-			mac = mac.toUpperCase();
-		}
+		} 
 		actInfo.d = mac;
 		actInfo.token = req.body.token;
 
@@ -342,6 +331,7 @@ module.exports = (function() {
 		//Check params
 		var mac = req.body.d;
 		var token = req.body.token;
+		var agri =  req.body.agri;
 		var actInfo = {};
 
         if (mac === undefined) {
@@ -350,18 +340,8 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
-		} else {
-			let length = mac.length -12;
-			if (mac.length < 0) {
-				res.send({
-					"responseCode" : '404',
-					"responseMsg" : 'No device to active'
-				});
-				return;
-			}
-			mac = mac.slice(length);
-			mac = mac.toUpperCase();
-		}
+		} 
+		actInfo.agri =agri;
 		actInfo.mac = mac;
 		actInfo.token = req.body.token;
 
@@ -375,7 +355,7 @@ module.exports = (function() {
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo));
 						// check roleId
-						if (actInfo.roleId !== 1) {
+						if (actInfo.roleId !== 1 && actInfo.roleId !== 36) {
 							// set no permission
 							res.send({
 								"responseCode" : '401',
@@ -384,7 +364,12 @@ module.exports = (function() {
 							return;
 						}
 						let sqlStr = 'update api_device_info set device_status = 1, device_active_time = current_time(), updateTime = current_time(), device_cp_id = '+actInfo.cpId+', updateUser = ' +actInfo.userId+ ' where device_status = 0 and device_mac = "' + actInfo.mac +'"';
-						console.log('/device post sqlStr :\n' + sqlStr);
+						//Jason add for agri sensor active
+						if (actInfo.agri === 'true') {
+							sqlStr = 'update api_device_info set device_status = 3, device_active_time = current_time(), updateTime = current_time(), device_cp_id = '+actInfo.cpId+', updateUser = ' +actInfo.userId+ ' where device_status = 0 and device_mac = "' + actInfo.mac +'"';
+						}
+						
+						console.log('active sqlStr :\n' + sqlStr);
 						next(err1, sqlStr);
 					}
 				});
@@ -430,7 +415,7 @@ module.exports = (function() {
 		//Check params
 		var mac = req.body.d;
 		var token = req.body.token;
-		var type =  req.body.typen;
+		var type =  req.body.type;
 		var actInfo = {};
 
         if (mac === undefined) {
@@ -439,18 +424,8 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
-		} else {
-			let length = mac.length -12;
-			if (mac.length < 0) {
-				res.send({
-					"responseCode" : '404',
-					"responseMsg" : 'No device to add'
-				});
-				return;
-			}
-			mac = mac.slice(length);
-			mac = mac.toUpperCase();
 		}
+		actInfo.type = type;
 		actInfo.mac = mac;
 		actInfo.token = req.body.token;
 		// Jason add for temp test
@@ -467,7 +442,7 @@ module.exports = (function() {
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo));
 						// check roleId
-						if (actInfo.roleId !== 1) {
+						if (actInfo.roleId !== 1 && actInfo.roleId !== 36) {
 							// set no permission
 							res.send({
 								"responseCode" : '401',
@@ -513,31 +488,99 @@ module.exports = (function() {
 		});
 	});
 
-	router.put('/device', function(req, res) {
+	//New batch devices
+	router.post('/batchDevices', function(req, res) {
 		//Check params
-		var mac = req.body.d;
-		var name = req.body.name;
+		var macList = req.body.list;
 		var token = req.body.token;
+		var type =  req.body.type;
 		var actInfo = {};
 
-        if (mac === undefined) {
+        if (macList === undefined || type === undefined) {
             res.send({
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
-		} /* else {
-			let length = mac.length -12;
-			if (mac.length < 0) {
-				res.send({
-					"responseCode" : '404',
-					"responseMsg" : 'No device to add'
-				});
+		} 
+		actInfo.macList = macList;
+		actInfo.token = req.body.token;
+		// Jason add for temp test
+		actInfo.type = type;
+		actInfo.share = 0;
+		actInfo.org  = '';
+
+		util.checkAndParseToken(actInfo.token, res, function(err1, result1){
+			if (err1) {
 				return;
+			} else {
+				//Token is ok
+				let promises = [];
+				actInfo = util.addJSON(actInfo, result1.userInfo);
+				console.log('actInfo : ' + JSON.stringify(actInfo));
+				// check roleId
+				if (actInfo.roleId !== 1 && actInfo.roleId !== 36) {
+					// set no permission
+					res.send({
+						"responseCode" : '401',
+						"responseMsg" : 'no permission to access'
+					});
+					return;
+				}
+				/* ************************************************************/
+				actInfo.macList.forEach(function(mac){
+					try {
+						console.log('mac : ' + mac);
+						let url = 'http://localhost:'+config.port +'/device/v1/device';
+						promises.push(axios.post(url,  { 'token' : actInfo.token, d: mac, type: actInfo.type}));
+					} catch (error) {
+						console.log('???? get AP of loraM err: ' + err);
+					}
+
+				});
+				axios.all(promises).then(function(results) {
+					for(let i = 0 ; i < results.length ; i++){
+						try {
+							console.log('results : ' + JSON.stringify(results[i].data));
+							if (results[i].data.responseCode !== '000') {
+								res.send({
+									"responseCode" : '401',
+									"responseMsg" : 'Add batch devices fail'
+								});
+								break;
+								return;
+							}
+						} catch (error) {
+							console.log('???? Add all AP of loraM and set err: ' + error);
+						}
+					}
+					res.send({
+						"responseCode" : '000',
+						"responseMsg" : 'Add batch device success'
+					});
+				});
+
+				/* ************************************************************/
 			}
-			mac = mac.slice(length);
-			mac = mac.toUpperCase();
-		} */
+		});
+			
+	});
+
+	//Update batch devices
+	router.put('/device', function(req, res) {
+		//Check params
+		var mac = req.body.d;
+		var token = req.body.token;
+		var name = req.body.name;
+		var actInfo = {};
+
+        if (mac === undefined ) {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
+		} 
 		actInfo.name = name;
 		actInfo.mac = mac;
 		actInfo.token = req.body.token;
@@ -602,19 +645,21 @@ module.exports = (function() {
 	//delete user
 	router.delete('/device', function(req, res) {
 		//Check params
-		var checkArr = ['token','delDeviceId'];
-        var actInfo = util.checkFormData(req, checkArr);
-        if (actInfo === null) {
+		var token = req.query.token;
+		var delDeviceId = req.query.delDeviceId;
+		var actInfo = {};
+        if (delDeviceId === undefined) {
             res.send({
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
 		}
+		actInfo.delDeviceId = delDeviceId;
 
         async.waterfall([
 			function(next){
-				util.checkAndParseToken(req.body.token, res,function(err1, result1){
+				util.checkAndParseToken(req.query.token, res,function(err1, result1){
 					if (err1) {
 						return;
 					} else { 
@@ -622,15 +667,14 @@ module.exports = (function() {
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo))
 						let sqlStr = '';
-						sqlStr = 'delete from api_device_info where device_id = "'+actInfo.delDeviceId +'"';
+						sqlStr = 'delete from api_device_info where deviceId='+actInfo.delDeviceId;
 						console.log('delete device sql : +\n' + sqlStr);
 						next(err1, sqlStr);	  
 					}
 				});
 			},
 			function(rst1, next){
-				//Get user mapping from api_user_mapping
-				let obj = {}, sqlStr1 = '';
+				//Get user mapping from api_user_mappin
 				mysqlTool.remove(rst1, function(err2, result2){
 					next(err2, result2);
 				});
@@ -646,6 +690,123 @@ module.exports = (function() {
 					"responseCode" : '000',
 					"responseMsg" : 'delete success'
 				});
+			}
+		});
+	});
+
+	// JASON add for get all of sensors 
+	router.get('/sensor', function(req, res) {
+		//User Token for auth
+		let actInfo = {};
+		actInfo.token = req.query.token;
+
+		async.waterfall([
+			function(next){
+				util.checkAndParseToken(actInfo.token, res, function(err1, result1){
+					if (err1) {
+						return;
+					} else {
+						//Token is ok
+						//Token is ok
+						let sqlStr = '';
+						actInfo = util.addJSON(actInfo, result1.userInfo);
+						if (actInfo.dataset === 0) {
+							// set all device query
+							sqlStr = 'select deviceId, device_mac, device_name, device_status, device_active_time, device_bind_time, device_cp_id, device_user_id, device_status, device_status, device_IoT_org, device_IoT_type, case when device_status = 0 then "unopened" when device_status = 1 then "active"  when device_status = 2 then "binding" when device_status = 3 then "in used" else "unknown" end as statusDesc  from api_device_info where device_type = "LoRaM"';
+						} else if (actInfo.dataset === 1) {
+							// set CP device query
+							sqlStr = 'select deviceId, device_mac, device_name, device_status, device_active_time, device_bind_time, device_cp_id, device_user_id, device_status, device_status, device_IoT_org, device_IoT_type, case when device_status = 0 then "unopened" when device_status = 1 then "active"  when device_status = 2 then "binding" when device_status = 3 then "in used" else "unknown" end as statusDesc  from api_device_info where device_type = "LoRaM" and device_cp_id = '+actInfo.cpId;
+						} else if (actInfo.dataset === 2) {
+							// set user device query
+							sqlStr = 'select deviceId, device_mac, device_name, device_status, device_active_time, device_bind_time, device_cp_id, device_user_id, device_status, device_status, device_IoT_org, device_IoT_type, case when device_status = 0 then "unopened" when device_status = 1 then "active"  when device_status = 2 then "binding" when device_status = 3 then "in used" else "unknown" end as statusDesc  from api_device_info where device_type = "LoRaM" and device_user_id = '+actInfo.userId;
+						} else {
+							// set fail result
+							res.send({
+								"responseCode" : '401',
+								"responseMsg" : 'Role missing'
+							});
+							return;
+						}
+						console.log('sqlStr :\n' + sqlStr);
+						next(err1, sqlStr);
+					}
+				});
+			},
+			function(rst1, next){
+				//Get user mapping from api_user_mapping
+				mysqlTool.query(rst1, function(err2, result2){
+					//Has user mapping or not?
+					if(result2.length > 0) {
+						//User mapping is exist
+						next(err2, result2);
+					} else {
+						// set fail result
+						res.send({
+							"responseCode" : '404',
+							"responseMsg" : 'No device data'
+						});
+						return;
+					}
+				});
+			},
+			function(deviceList, next){
+				let promises = [];
+				let gwArray = [];
+				deviceList.forEach(function(device){
+					try {
+						let mac = device.device_mac;
+						console.log('mac : ' + mac);
+						let q = encodeURIComponent('["'+mac+'", "raw"]');
+						let url = 'http://localhost:'+config.port +'/device/v1/last/'+mac;
+						promises.push(axios.get(url, {headers : { 'test' : true }}));
+					} catch (error) {
+						console.log('???? get AP of loraM err: ' + error);
+					}
+
+				});
+				axios.all(promises).then(function(results) {
+					for(let i = 0 ; i < deviceList.length ; i++){
+						let d = deviceList[i];
+						
+						try {
+							let result = results[i].data.data;
+							if(result)
+								console.log('result : ' + JSON.stringify(result));
+							if(result && result.length > 0){
+								d['LoRaAP'] = result[0].extra.gwid;
+								d['fport'] = result[0].extra.fport;
+							}else{
+								d['LoRaAP'] = 'NA';
+								d['fport'] = 0;
+							}
+							gwArray.push(d);
+						} catch (error) {
+							console.log('???? get all AP of loraM and set err: ' + err);
+						}
+					}
+					next(null, gwArray);
+				});
+			}
+		], function(err, rst){
+			if(err) {
+				res.send({
+					"responseCode" : '404',
+					"responseMsg" : 'update fail'
+				});
+			} else {
+				if ( rst.length > 0) {
+					res.send({
+						"responseCode" : '000',
+						"responseMsg" : 'query success',
+						"size" : rst.length,
+						"mList" : rst
+					});
+				} else {
+					res.send({
+						"responseCode" : '404',
+						"responseMsg" : 'No data'
+					});
+				}
 			}
 		});
 	});
@@ -741,7 +902,7 @@ module.exports = (function() {
 						let url = 'http://localhost:'+config.port +'/device/v1/last/'+mac;
 						promises.push(axios.get(url, {headers : { 'test' : true }}));
 					} catch (error) {
-						console.log('???? get AP of loraM err: ' + err);
+						console.log('???? get AP of loraM err: ' + error);
 					}
 
 				});
