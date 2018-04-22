@@ -12,7 +12,7 @@ module.exports = (function() {
 	var page_limit = config.page_limit;
 
     //Get grp
-	router.get('/', function(req, res) {
+	router.get('/grp', function(req, res) {
 		var token = req.query.token;
         if (token === undefined) {
 			res.send({

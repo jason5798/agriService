@@ -65,7 +65,8 @@ function find(json, _paginate, _offset, _limit,_sort) {
     }
     return new Promise(function (resolve, reject) {
         if (_paginate === false) {
-            DeviceModel.find(json).sort(sort).exec(function(err,result){
+            
+            DeviceModel.find(json).sort(sort).limit(_limit).exec(function(err,result){
                 if(err){
                     reject(err)
                 }else{

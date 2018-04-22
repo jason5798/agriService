@@ -11,7 +11,8 @@ var api = require('./routers/api.js'),
 	func = require('./routers/func.js'),
 	sys = require('./routers/sys.js'),
 	control = require('./routers/control.js'),
-    device = require('./routers/device.js');
+	device = require('./routers/device.js');
+	log = require('./routers/log.js');
 var config = require('./config');
 var async   = require('async'),
 	request = require('request');
@@ -50,14 +51,15 @@ router.get('/', function(req, res) {
 
 app.use('/user'  + config.baseurl, user);//Login,logout,User
 app.use('/api' + config.baseurl, api);
-app.use('/cps' + config.baseurl, cp);//Company
-app.use('/grp' + config.baseurl, grp);//Group
+app.use('/admin' + config.baseurl, cp);//Company
+app.use('/admin' + config.baseurl, grp);//Group
 app.use('/map' + config.baseurl, map);//Device type map
-app.use('/roles' + config.baseurl, roles);//Role : user limit
-app.use('/func' + config.baseurl, func);//function : WEB function enable or not
+app.use('/admin' + config.baseurl, roles);//Role : user limit
+app.use('/admin' + config.baseurl, func);//function : WEB function enable or not
 app.use('/sys' + config.baseurl, sys);
 app.use('/device' + config.baseurl, device);
 app.use('/control' + config.baseurl, control);
+app.use('/admin' + config.baseurl, log);
 
 api = require('./routers/api.js'),
 

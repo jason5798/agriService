@@ -355,7 +355,7 @@ module.exports = (function() {
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo));
 						// check roleId
-						if (actInfo.roleId !== 1 && actInfo.roleId !== 36) {
+						if (actInfo.roleId !== 1) {
 							// set no permission
 							res.send({
 								"responseCode" : '401',
@@ -442,7 +442,7 @@ module.exports = (function() {
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo));
 						// check roleId
-						if (actInfo.roleId !== 1 && actInfo.roleId !== 36) {
+						if (actInfo.roleId !== 1) {
 							// set no permission
 							res.send({
 								"responseCode" : '401',
@@ -450,7 +450,7 @@ module.exports = (function() {
 							});
 							return;
 						}
-						let sqlStr = 'INSERT INTO `cloudb`.`api_device_info` ( `device_mac`, `device_name`, `device_status`, `device_type`, `device_share`, `device_IoT_org`, `device_IoT_type`, `createTime`, `createUser`) VALUES ( "'+actInfo.mac+'", "'+actInfo.mac+'", 0, "'+actInfo.type+'", '+actInfo.share+', "'+actInfo.org+'", "'+actInfo.type+'", current_time(), '+actInfo.userId+') '
+						let sqlStr = 'INSERT INTO `cloudb`.`api_device_info` ( `device_mac`, `device_name`, `device_status`, `device_type`, `device_share`, `device_IoT_org`, `device_IoT_type`, `createTime`, `createUser`, `device_user_id`) VALUES ( "'+actInfo.mac+'", "'+actInfo.mac+'", 0, "'+actInfo.type+'", '+actInfo.share+', "'+actInfo.org+'", "'+actInfo.type+'", current_time(), '+actInfo.userId+','+actInfo.userId+') '
 						console.log('/device post sqlStr :\n' + sqlStr);
 						next(err1, sqlStr);
 					}
@@ -519,7 +519,7 @@ module.exports = (function() {
 				actInfo = util.addJSON(actInfo, result1.userInfo);
 				console.log('actInfo : ' + JSON.stringify(actInfo));
 				// check roleId
-				if (actInfo.roleId !== 1 && actInfo.roleId !== 36) {
+				if (actInfo.roleId !== 1) {
 					// set no permission
 					res.send({
 						"responseCode" : '401',
@@ -596,7 +596,7 @@ module.exports = (function() {
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo));
 						// check roleId
-						if (actInfo.roleId !== 1 && actInfo.roleId !== 36) {
+						if (actInfo.roleId !== 1) {
 							// set no permission
 							res.send({
 								"responseCode" : '401',

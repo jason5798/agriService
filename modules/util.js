@@ -9,6 +9,7 @@ var config = require('../config');
 var mysqlTool = require('./mysqlTool.js');
 var debug = isDebug();
 var axios = require('axios');
+var mongoLog = require('../modules/mongo/mongoLog.js');
 
 module.exports = {
     decode,
@@ -31,7 +32,8 @@ module.exports = {
     decodeBase64,
     DateTimezone,
     getISODate,
-    getMacString
+    getMacString,
+    addLog
 }
 
 function httpGet(url, username, password) {
@@ -448,6 +450,10 @@ function checkAndParseToken (token, res, callback) {
                         OAFlg = true
                     }
                 }
+                //Jason add for agri information
+                if(config.isAgri) {
+                    accessFlg = true
+                }
                 if (accessFlg) {
                     var data = {
                         "OAFlg" : OAFlg,
@@ -545,7 +551,7 @@ function checkFormData (req, checkArr) {
         var count = 0;
         var json = {};
         keys.forEach(function(key,index) {
-            console.log('index : ' + index + ', key : ' + key );
+            // console.log('index : ' + index + ', key : ' + key );
             if(checkArr.indexOf(key) !== -1) {
                 if(key === 'map' || key === 'fieldName') {
                     if (typeof(req.body[key]) !== 'string') {
@@ -621,4 +627,21 @@ function getMacString(mac) {
         mac = '00000000' + mac;
     }
     return mac.toLowerCase();
+}
+
+function addLog (json) {
+    if(json.recv === undefined || jaon.recv === null) {
+        json.recv = new Date();
+    }
+    if(json.remark === undefined || json.remark === null) {
+        json.remark= '';
+    }
+	
+	mongoLog.saveLog(json, function(err, result){
+		if (err) {
+			console.log(getCurrentTime() + ' log ' + json.subject + ' fail ' + err);
+			return;
+		}
+		console.log(getCurrentTime() + ' log ' + json.subject + ' success');
+	});
 }

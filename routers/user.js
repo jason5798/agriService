@@ -172,6 +172,11 @@ module.exports = (function() {
 			});
 			return;
 		}
+		//Jason add for log revord 2018.04.20 -- start 
+		if (req.body.createUser) { 
+			userInfo.createUser = req.body.createUser;
+		}
+		//Jason add for log revord 2018.04.20  -- end
 		let sqlStr1 = 'select * from api_system_properties where p_name = "ACC_FORMAT" ';
 		let sqlStr2 = 'select * from api_system_properties where p_name = "EMAIL_FORMAT" ';
 		let sqlStr3 = 'select * from api_system_properties where p_name = "PWD_FORMAT" ';
@@ -236,7 +241,7 @@ module.exports = (function() {
 				if(userInfo.cp === 1){
 					role = 29;
 				}
-				if(userInfo.cp === 8){
+				if(userInfo.cp === 8 || userInfo.cp == 7){
 					role = 15; 
 				}
 				let sqlStr5 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ((select cpId from api_cp where cpName = "'+userInfo.cp+'"), '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, "'+util.getCurrentTime()+'", 1)'
@@ -253,6 +258,8 @@ module.exports = (function() {
 				});
 			} else {
               if(rst) {
+				var json = {type:'admin', subject:'新增帳戶', content: '帳戶名稱' + userInfo.name, createUser:userInfo.createUser};
+				util.addLog(json);
 				res.send({
 					"responseCode" : '000',
 					"responseMsg" : 'sign up success'
@@ -328,7 +335,7 @@ module.exports = (function() {
 			} else {
 				res.send({
 					"responseCode" : '401',
-					"responseMsg" : 'No datal'
+					"responseMsg" : 'No data'
 				});
 			}
 		});
@@ -337,7 +344,7 @@ module.exports = (function() {
 	//update user
 	router.put('/users', function(req, res) {
 		//Check params
-		var checkArr = ['token','mUserId', 'catId', 'roleId','userBlock'];
+		var checkArr = ['mUserId', 'catId', 'roleId','userBlock'];
         var actInfo = util.checkFormData(req, checkArr);
         if (actInfo === null) {
             res.send({
@@ -346,6 +353,14 @@ module.exports = (function() {
 			});
 			return;
 		}
+		//Jason add for log revord 2018.04.20 -- start 
+		if (req.body.createUser) { 
+			actInfo.createUser = req.body.createUser;
+		}
+		if (req.body.userName) {
+			actInfo.userName = req.body.userName;
+		}
+		//Jason add for log revord 2018.04.20  -- end
 		// Jason add for fix roleId be changed by login user token roleId
 		actInfo.mRoleId = actInfo.roleId
 
@@ -375,11 +390,14 @@ module.exports = (function() {
 											"responseCode" : '404',
 											"responseMsg" : err
 										});
+										return;
 									} else {
+										toAddUpdateLog (actInfo); 
 										res.send({
 											"responseCode" : '000',
 											"responseMsg" : 'updata success'
 										});
+										return;
 									}	
 								});
 							} else {
@@ -400,7 +418,7 @@ module.exports = (function() {
 				let obj = {}, sqlStr1 = '';
 				mysqlTool.query(rst1, function(err2, result2){
 					//Has user mapping or not?
-					if(result2.length > 0) {
+					if(result2 && result2.length > 0) {
 						//User mapping is exist
 						sqlStr1 = 'UPDATE api_user_mapping SET `locId` = '+actInfo.catId+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId;
 					    obj = {"isUpdate": true, "sqlstr": sqlStr1};
@@ -442,7 +460,7 @@ module.exports = (function() {
 			},
 			function(rst3, next){
 				//Update User for oa
-				let sqlStr = 'UPDATE api_user SET `roleId` = '+actInfo.roleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId +' and cpId = '+actInfo.cpId;
+				let sqlStr = 'UPDATE api_user SET `roleId` = '+actInfo.mRoleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId +' and cpId = '+actInfo.cpId;
 				console.log('updateuser sqlstr :\n' + sqlStr);
 				mysqlTool.update(sqlStr, function(err4, result4){
 					next(err4, result4);
@@ -455,9 +473,10 @@ module.exports = (function() {
 					"responseMsg" : 'update fail'
 				});
 			} else {
+				toAddUpdateLog(actInfo); 
 				res.send({
 					"responseCode" : '000',
-					"responseMsg" : 'update success'
+					"responseMsg" : 'updattee success'
 				});
 			}
 		});
@@ -477,6 +496,14 @@ module.exports = (function() {
 			return;
 		}
 		actInfo.delUserId = delUserId;
+		//Jason add for log record 2018.04.20 -- start 
+		if (req.query.createUser) { 
+			actInfo.createUser = req.query.createUser;
+		}
+		if (req.query.userName) {
+			actInfo.userName = req.query.userName;
+		}
+		//Jason add for log record 2018.04.20  -- end
 
         async.waterfall([
 			function(next){
@@ -520,6 +547,7 @@ module.exports = (function() {
 					"responseMsg" : 'delete fail'
 				});
 			} else {
+				toAddDeleteLog(actInfo);
 				res.send({
 					"responseCode" : '000',
 					"responseMsg" : 'delete success'
@@ -637,7 +665,8 @@ function genUserInfo (userInfo, dbUser, grps, token) {
     userData['nickName'] = dbUser['nickName'];
     userData['gender'] = dbUser['gender'];
     userData['pic'] = dbUser['pic'];
-    userData['email'] = dbUser['email'];
+	userData['email'] = dbUser['email'];
+	userData['cp'] = userInfo['cp'];
     newPayload['userInfo'] = userData;
     newPayload['services'] = grps;
     newPayload['role'] = dbUser['roleName'];
@@ -651,4 +680,39 @@ function genUserInfo (userInfo, dbUser, grps, token) {
 function checkFormat (str, result) {
 	let re = new RegExp(result[0].p_value, 'g')
 	return re.test(str);
+}
+
+function toAddUpdateLog (actInfo) {
+	var json = {type:'admin', subject:'更新帳戶', createUser:actInfo.createUser, cp:actInfo.cpId};
+	if (actInfo.userName) {
+		json.content = '帳戶名稱' + actInfo.userName;
+	} else {
+		json.content = '帳戶Id' + actInfo.mUserId;
+	}
+	var remark = '';
+	if (actInfo.mRoleId === 1) {
+		remark = remark + '超級管理者,'; 
+	} else if (actInfo.mRoleId === 8) {
+		remark = remark + '一般管理者,';
+	} else {
+		remark = remark + '一般使用者,';
+	}
+	if (actInfo.userBlock === 0) {
+		remark = remark + '啟用'; 
+	} else if (actInfo.mRoleId === 8) {
+		remark = remark + '禁用';
+	} 
+	json.remark = remark;
+	util.addLog(json);
+}
+
+function toAddDeleteLog (actInfo) {
+	var json = {type:'admin', subject:'刪除帳戶', createUser:actInfo.createUser, cp:actInfo.cpId};
+	if (actInfo.userName) {
+		json.content = '帳戶名稱' + actInfo.userName;
+	} else {
+		json.content = '帳戶Id' + actInfo.mUserId;
+	}
+	json.remark = '';
+	util.addLog(json);
 }
