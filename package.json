@@ -1,6 +1,6 @@
 {
   "name": "agriService",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Agri API Service",
   "main": "server.js",
   "dependencies": {

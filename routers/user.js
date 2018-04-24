@@ -292,10 +292,10 @@ module.exports = (function() {
 						console.log('userInfo : ' + JSON.stringify(result1))
 						let userInfo = result1.userInfo;
 						let sqlStr = '';
-						if (result1.OAFlg) {
-							//all user query fo oa
-							sqlStr = 'select u.userId, u.cpId, u.roleId, u.userName, u.pic, u.email, u.userBlock, u.userType, u.createTime, g.expenseGrpId, g.grpName, r.roleName, case when u.userBlock = 0 then "unblock"  when u.userBlock = 1 then "block" else "unknown" end as blockDesc from api_user u left join api_user_mapping m on u.userId = m.userId left join api_expense_grp g on m.locId = g.expenseGrpId left join api_role r on u.roleId = r.roleId where u.cpId = '+userInfo.cpId;
-						} else {
+						// if (result1.OAFlg) {
+							//all user query for oa
+							// sqlStr = 'select u.userId, u.cpId, u.roleId, u.userName, u.pic, u.email, u.userBlock, u.userType, u.createTime, g.expenseGrpId, g.grpName, r.roleName, case when u.userBlock = 0 then "unblock"  when u.userBlock = 1 then "block" else "unknown" end as blockDesc from api_user u left join api_user_mapping m on u.userId = m.userId left join api_expense_grp g on m.locId = g.expenseGrpId left join api_role r on u.roleId = r.roleId where u.cpId = '+userInfo.cpId;
+						// } else {
 							if(userInfo.dataset === 0) {
 								//All user query
 								sqlStr = 'select u.userId, u.cpId, u.roleId, u.userName, u.pic, u.email, u.userBlock, u.userType, u.createTime, c.cpName, r.roleName, case when u.userBlock = 0 then "unblock"  when u.userBlock = 1 then "block" else "unknown" end as blockDesc from api_user u left join api_cp c on u.cpId = c.cpId left join api_role r on u.roleId = r.roleId where 1 =1 ';
@@ -309,7 +309,7 @@ module.exports = (function() {
 								});
 								return;
 							}
-						}	
+						// }	
 						next(err1, sqlStr); 	  
 					}
 				});
