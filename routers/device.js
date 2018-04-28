@@ -34,11 +34,11 @@ function findDevices (json, req, res) {
 		}
 
 		if (req.query.from){
-			from = util.getISODate(req.query.from);
+			from = req.query.from;
 		}
 
 		if (req.query.to) {
-		    to = util.getISODate(req.query.to);
+		    to = req.query.to;
 		}
 
 		if(req.query.paginate) {
@@ -341,6 +341,9 @@ module.exports = (function() {
 			});
 			return;
 		} 
+		if (req.body.name) {
+            actInfo.name = req.body.name;
+		}
 		actInfo.agri =agri;
 		actInfo.mac = mac;
 		actInfo.token = req.body.token;
@@ -398,6 +401,12 @@ module.exports = (function() {
 					"responseMsg" : 'activate fail'
 				});
 			} else {
+				var contentStr = '裝置:' + actInfo.mac;
+				if (actInfo.name) {
+					contentStr = contentStr + ' 名稱:' + actInfo.name;
+				}
+				var json = {type:'device', subject:'啟用裝置', content: contentStr, userId: actInfo.userId, cpId: actInfo.cpId.toString()};
+				util.addLog(json);
 				res.send({
 					"responseCode" : '000',
 					"responseMsg" : 'activate success'
@@ -554,6 +563,9 @@ module.exports = (function() {
 							console.log('???? Add all AP of loraM and set err: ' + error);
 						}
 					}
+					var macStr = actInfo.macList.toString();
+					var json = {type:'device', subject:'新增裝置', content: '裝置:' + macStr, userId: actInfo.userId, cpId: actInfo.cpId.toString()};
+				    util.addLog(json);
 					res.send({
 						"responseCode" : '000',
 						"responseMsg" : 'Add batch device success'
@@ -566,7 +578,7 @@ module.exports = (function() {
 			
 	});
 
-	//Update batch devices
+	//Update devices
 	router.put('/device', function(req, res) {
 		//Check params
 		var mac = req.body.d;
@@ -634,6 +646,9 @@ module.exports = (function() {
 					"responseMsg" : err
 				});
 			} else {
+				var contentStr = '裝置:' + actInfo.mac + ' 名稱:'+ actInfo.name;
+				var json = {type:'device', subject:'更新裝置', content: contentStr, userId: actInfo.userId, cpId: actInfo.cpId.toString()};
+				util.addLog(json);
 				res.send({
 					"responseCode" : '000',
 					"responseMsg" : 'update success'
@@ -654,6 +669,13 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
+		}
+		//Jason add for log delete mac on 2018.04.28 -- start 
+		if (req.query.mac) {
+            actInfo.mac = req.query.mac;
+		}
+		if (req.query.name) {
+            actInfo.name = req.query.name;
 		}
 		actInfo.delDeviceId = delDeviceId;
 
@@ -686,6 +708,16 @@ module.exports = (function() {
 					"responseMsg" : 'delete fail'
 				});
 			} else {
+
+				var contentStr = '裝置id:' + actInfo.delDeviceId;
+				if (actInfo.mac) {
+					contentStr = '裝置:' + actInfo.mac;
+				}
+				if (actInfo.name) {
+					contentStr = contentStr + ' 名稱:' + actInfo.name;
+				}
+				var json = {type:'device', subject:'刪除裝置', content: contentStr, userId: actInfo.userId, cpId: actInfo.cpId.toString()};
+				util.addLog(json);
 				res.send({
 					"responseCode" : '000',
 					"responseMsg" : 'delete success'

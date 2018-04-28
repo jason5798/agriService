@@ -25,7 +25,98 @@ var basic = auth.basic({
 	realm: "Node JS API",
     file: "./keys.htpasswd" // gevorg:gpass, Sarah:testpass ...
 });
+// Jason add for line-bot notify on 2018.04.24 -- start 
+var path = require('path');
+var linebot = require('linebot');
+var JsonFileTools =  require('./modules/jsonFileTools.js');
+var userPath = './public/data/friend.json';
 
+if (config.channelId !=='' && config.channelSecret !=='' && config.channelAccessToken !=='') {
+	var bot = linebot({
+		channelId: config.channelId,
+		channelSecret: config.channelSecret,
+		channelAccessToken: config.channelAccessToken
+	});
+	
+	const linebotParser = bot.parser();
+	
+	bot.on('message', function(event) {
+		// 把收到訊息的 event 印出來
+		console.log(event);
+		var msg = new Date() + event.message.text;
+		event.reply(msg).then(function (data) {
+			// success 
+			console.log('event reply : ' + JSON.stringify(data));
+		}).catch(function (error) {
+			// error 
+			console.log('event reply : ' + JSON.stringify(error));
+		});
+		event.source.profile().then(function (profile) {
+			console.log('uaer profile : ' + JSON.stringify(profile));
+		}).catch(function (error) {
+			// error 
+			console.log('uaer profile error : ' + JSON.stringify(error));
+		});
+	});
+	
+	bot.on('follow',   function (event) { 
+	  //紀錄好友資料
+	  console.log('line follow  : ' + event.source.userId);
+	  addFriend(event.source.userId);
+	});
+	
+	bot.on('unfollow', function (event) {
+	  //刪除好友紀錄
+	  console.log('line unfollow  : ' + event.source.userId);
+	  removeFriend(event.source.userId)
+	 });
+	
+	bot.on('join',     function (event) {
+	  //紀錄加入者資料資料
+	  addFriend(event.source.userId);
+	  console.log('line join : ' + event.source.userId);
+	 });
+	
+	 function getUser() {
+		try {
+			  var user = JsonFileTools.getJsonFromFile(userPath);
+		  }
+		  catch (e) {
+			  var user = {};
+		  }
+		
+		if (user.friend === undefined) {
+		  user.friend = [];
+		}
+		return user;
+	  }
+	
+	 function saveUser(user) {
+		JsonFileTools.saveJsonToFile(userPath,user);
+	  }
+	  
+	  function addFriend(id) {
+		var user = getUser();
+		var index = user.friend.indexOf(id);
+		if (index === -1) {
+			user.friend.push(id);
+		}
+		saveUser(user);
+	  }
+	  
+	  function removeFriend(id) {
+		var user = getUser();
+		var index = user.friend.indexOf(id);
+		if (index > -1) {
+			user.friend.splice(index, 1);
+		}
+		saveUser(user);
+	  }
+	  app.post('/webhook', linebotParser);
+}
+// Jason add for line-bot notify on 2018.04.24 -- end
+
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(morgan('dev')); // log every request to the console
@@ -34,7 +125,6 @@ app.use(cors());
 if(config.auth == true) {
 	app.use(auth.connect(basic));
 }
-
 
 app.all('/*', function(req, res, next) {
   // CORS headers

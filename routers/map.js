@@ -144,6 +144,11 @@ module.exports = (function() {
 			json.updateUser = req.body.updateUser;
 		}
 
+		if (req.body.profile) {
+			json.profile = req.body.profile;
+		}
+
+
 		json.updateTime = new Date();
 
         util.checkAndParseToken(req.body.token, res, function(err,result){

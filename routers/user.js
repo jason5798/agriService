@@ -181,6 +181,7 @@ module.exports = (function() {
 		let sqlStr2 = 'select * from api_system_properties where p_name = "EMAIL_FORMAT" ';
 		let sqlStr3 = 'select * from api_system_properties where p_name = "PWD_FORMAT" ';
 		let sqlStr4 = 'select * from api_user where cpId =(select cpId from api_cp where cpName = "'+userInfo.cp+'") and (userName = "'+userInfo.name+'" or email = "'+userInfo.email+'")'
+		let sqlStr5 = 'select cpId from api_cp where cpName = "'+userInfo.cp+'"'
 		async.waterfall([
 			function(next){
 				//Check acc format
@@ -236,18 +237,32 @@ module.exports = (function() {
 				});
 			},
 			function(rst4, next){
+				mysqlTool.query(sqlStr5, function(err5, result5){
+					//Check user,email is exist or not
+					if (result4.length <= 0) {
+						res.send({
+							"responseCode" : '404',
+							"responseMsg" : 'Cp not exist'
+						});
+					} else {
+						next(err5, result5);
+					}
+				});
+			},
+			function(rst5, next){
+				userInfo['cpId'] = rst5d[0].cpId
 				var encodePwd = util.encode(userInfo.pwd, config.generalKey);
 				let role = 0
-				if(userInfo.cp === 1){
+				if(userInfo.cpId === 1){
 					role = 29;
 				}
-				if(userInfo.cp === 8 || userInfo.cp == 7){
+				if(userInfo.cpId === 8 || userInfo.cpId == 7){
 					role = 15; 
 				}
-				let sqlStr5 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ((select cpId from api_cp where cpName = "'+userInfo.cp+'"), '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, "'+util.getCurrentTime()+'", 1)'
-				console.log('insert new user sql :\n' + sqlStr5);
-				mysqlTool.insert(sqlStr5, function(err5, result5){
-					next(err5, result5);
+				let sqlStr6 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ((select cpId from api_cp where cpName = "'+userInfo.cpId+'"), '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, "'+util.getCurrentTime()+'", 1)'
+				console.log('insert new user sql :\n' + sqlStr6);
+				mysqlTool.insert(sqlStr6, function(err6, result6){
+					next(err6, result6);
 				});
 			}
 		], function(err, rst){
@@ -258,7 +273,7 @@ module.exports = (function() {
 				});
 			} else {
               if(rst) {
-				var json = {type:'admin', subject:'新增帳戶', content: '帳戶名稱' + userInfo.name, createUser:userInfo.createUser};
+				var json = {type:'admin', subject:'新增帳戶', content: '帳戶名稱' + userInfo.name, createUser:userInfo.createUser, cpId: userInfo.cpId.toString()};
 				util.addLog(json);
 				res.send({
 					"responseCode" : '000',
@@ -683,7 +698,7 @@ function checkFormat (str, result) {
 }
 
 function toAddUpdateLog (actInfo) {
-	var json = {type:'admin', subject:'更新帳戶', createUser:actInfo.createUser, cp:actInfo.cpId};
+	var json = {type:'admin', subject:'更新帳戶', createUser:actInfo.createUser, cpId:actInfo.cpId};
 	if (actInfo.userName) {
 		json.content = '帳戶名稱' + actInfo.userName;
 	} else {
@@ -707,7 +722,7 @@ function toAddUpdateLog (actInfo) {
 }
 
 function toAddDeleteLog (actInfo) {
-	var json = {type:'admin', subject:'刪除帳戶', createUser:actInfo.createUser, cp:actInfo.cpId};
+	var json = {type:'admin', subject:'刪除帳戶', createUser:actInfo.createUser, cpId:actInfo.cpId.toString()};
 	if (actInfo.userName) {
 		json.content = '帳戶名稱' + actInfo.userName;
 	} else {

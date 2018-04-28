@@ -24,6 +24,9 @@ let mapSchema = new Schema({
     updateTime : {  type: Date, 
                     default: null, 
                     required: false},
+    profile    : {  type: Schema.Types.Mixed, 
+                    default: null, 
+                    required: false}
 });
 
 var MapModel = mongoose.model('Map', mapSchema);
@@ -45,7 +48,8 @@ function create (obj) {
         createUser  : obj.createUser,
         createTime  : new Date(),
         updateUser  : null,
-        updateTime  : null
+        updateTime  : null,
+        profile     : null
     });
     return new Promise(function (resolve, reject) {
         newMap.save(function(err, docs){

@@ -9,10 +9,9 @@ var logSchema = new Schema({
   subject     : { type: String},
   content     : { type: String},
   createUser  : { type: String},
-  createTime : { type: Date},
-  updateUser  : { type: String},
-  updateTime  : { type: Date},
-  cp          : { type: Number},
+  createTime  : { type: Date},
+  date        : { type: String},
+  cpId        : { type: String},
   remark      : { type: String}
 });
 
@@ -38,9 +37,8 @@ function saveLog(json,callback) {
     content      : json.content,
     createUser   : json.createUser,
     createTime   : json.recv,
-    updateUser   : null,
-    updateTime   : null,
-    cp           : json.cp,
+    date         : json.date,
+    cpId         : json.cpId,
     remark       : json.remark
   });
   newData.save(function(err){
@@ -140,6 +138,7 @@ function findAllLogs(calllback) {
 
 function findLogs(json,calllback) {
     console.log(moment().format('YYYY-MM-DD HH:mm:ss')+' Debug : find logs');
+    console.log(JSON.stringify(json));
     logModel.find(json, function(err,logs){
       if(err){
         return callback(err);

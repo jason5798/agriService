@@ -10,6 +10,10 @@ var mysqlTool = require('./mysqlTool.js');
 var debug = isDebug();
 var axios = require('axios');
 var mongoLog = require('../modules/mongo/mongoLog.js');
+var JsonFileTools = require('../modules/jsonFileTools.js');
+var linebot = require('linebot');
+var userPath = './public/data/friend.json';
+var adminPath = './public/data/admin.json';
 
 module.exports = {
     decode,
@@ -33,7 +37,8 @@ module.exports = {
     DateTimezone,
     getISODate,
     getMacString,
-    addLog
+    addLog,
+    sendAdminLineMessage
 }
 
 function httpGet(url, username, password) {
@@ -138,18 +143,35 @@ function checkDevice(mac, callback) {
     })
 }
 
-function parseMsgd(obj, callback) {
+function parseMsgd(message, callback) {
 
-    if (getType(obj) === 'other') {
-        return callback('Not JSON');
+    if (getType(message) === 'string') {
+        try {
+            var mesObj = JSON.parse(message);
+        } catch (error) {
+            return callback(error.message);
+        }
+        
+        if (getType(mesObj) === 'other') {
+            return callback('Not JSON');
+        }
+        var obj = mesObj[0];
+    } else if (getType(message) === 'object'){
+        var obj = message;
     }
     var fport = obj.fport.toString();
     //Get data attributes
     var mData = obj.data;
-    mMac  = obj.macAddr;
-    var timestamp = convertTime(obj.time);
+    var mMac  = obj.macAddr;
+    /* var timestamp = convertTime(obj.time);
     var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
     var mRecv = obj.time;
+    var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');*/
+    var mRecv = obj.time;
+    var recvDate = getMyDate(mRecv);
+    var timestamp = recvDate.getTime();
+    
+    var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
     var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
 
     // console.log('mRecv : '+  mRecv);
@@ -180,6 +202,10 @@ function parseMsgd(obj, callback) {
                     
                     if (debug) {
                         console.log(new Date() + 'parseMsgd message : ' + JSON.stringify(msg));
+                    }
+                    // sendLineMessage(mDate + ' newmessage');
+                    if (doc.profile) {
+                        toCheckNotify(mInfo, doc.profile, mMac);
                     }
                     return callback(null, msg);
                 } else {
@@ -527,7 +553,6 @@ function checkAndParseMessage (message, callback) {
             if (Math.abs(ts1 -ts2) > 86400) {
                 console.log('Has same data (mac,frameCnt) but timestamp is different return publish message');
                 //Save message to mongo database
-                saveMsgToDB(results[1]);
                 return callback(null, results[1]);
             } else {
                 console.log('Has same data to drop message');
@@ -587,11 +612,16 @@ function addJSON(obj1, obj2) {
 }
 
 function getCurrentTime() {
-    var now= new Date();
-    var timestamp = now.getTime(); ;
+    var utcMoment = moment.utc();
+    var timestamp = utcMoment.valueOf();
     var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
-    var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
-    return mDate;
+    var time = tMoment.format('YYYY-MM-DD HH:mm:ss');
+    return time;
+}
+
+function getCurrentUTCDate() {
+    var utcMoment = moment.utc();
+    return new Date( utcMoment.format("YYYY-MM-DDTHH:mm:ss") );
 }
 
 function DateTimezone(offset) {
@@ -608,18 +638,8 @@ function DateTimezone(offset) {
 }
 
 function getISODate(dateStr) {
-    var d = new Date(dateStr); 
-    
-    
-    console.log('d : ' + d.toISOString());
-    console.log('offset : ' + d.getTimezoneOffset()/60 );
-    
-    d.setTime(d.getTime() + ( (-d.getTimezoneOffset()-480 ) *60*1000)); 
-    console.log('d + offset : ' + d.toISOString());
-    /*var utcDate = d.toISOString();
-    console.log('d utc : ' + utcDate);
-    return utcDate; */
-    return d.toISOString();
+    var utcMoment = moment.utc(dateStr);
+    return new Date( utcMoment.format("YYYY-MM-DDTHH:mm:ss") );
 }
 
 function getMacString(mac) {
@@ -630,18 +650,139 @@ function getMacString(mac) {
 }
 
 function addLog (json) {
-    if(json.recv === undefined || jaon.recv === null) {
-        json.recv = new Date();
+    if(json.recv === undefined || json.recv === null) {
+        json.recv = getCurrentUTCDate();
+    }
+    if(json.date === undefined || json.date=== null) {
+        json.date = getCurrentTime();
     }
     if(json.remark === undefined || json.remark === null) {
         json.remark= '';
     }
-	
-	mongoLog.saveLog(json, function(err, result){
-		if (err) {
-			console.log(getCurrentTime() + ' log ' + json.subject + ' fail ' + err);
-			return;
-		}
-		console.log(getCurrentTime() + ' log ' + json.subject + ' success');
-	});
+
+    if (json.createUser === undefined && json.userId) {
+        var sqlStr = 'select * from api_user where userId=' + json.userId;
+        mysqlTool.query(sqlStr, function(err, result){
+            json.createUser = result[0].userName;
+            mongoLog.saveLog(json, function(err, result){
+                if (err) {
+                    console.log(getCurrentTime() + ' log ' + json.subject + ' fail ' + err);
+                    return;
+                }
+                console.log(getCurrentTime() + ' log ' + json.subject + ' success');
+            });
+        });
+    } else {
+        mongoLog.saveLog(json, function(err, result){
+            if (err) {
+                console.log(getCurrentTime() + ' log ' + json.subject + ' fail ' + err);
+                return;
+            }
+            console.log(getCurrentTime() + ' log ' + json.subject + ' success');
+        });
+    }
+}
+
+function sendLineMessage (msg) {
+    var bot = linebot({
+        channelId: config.channelId,
+        channelSecret: config.channelSecret,
+        channelAccessToken: config.channelAccessToken
+    });
+    var user = JsonFileTools.getJsonFromFile(userPath);
+    if (user.friend.length > 0) {
+        bot.multicast(user.friend, msg).then(function (data) {
+            // success 
+            console.log('push line :' + JSON.stringify(data));
+        }).catch(function (error) {
+            // error 
+            console.log('push line error :' + error);
+        });
+    }
+}
+
+function getUTCDate () {
+    var utcMoment = moment.utc();
+    return new Date( utcMoment.format("YYYY-MM-DDTHH:mm:ss") );
+ }
+
+function getMyDate (dateStr) {
+    var myMoment = moment(dateStr, "YYYY-MM-DDTHH:mm:ss");
+    var utcMoment = myMoment.utc(dateStr);
+    return new Date( utcMoment.format("YYYY-MM-DDTHH:mm:ss") );
+ }
+
+ // sendLineMessage(mDate + ' newmessage');
+ function  toCheckNotify(info, profile, mac) {
+    if (config.channelId ==='' || config.channelSecret ==='' || config.channelAccessToken ==='') {
+        return;
+    }
+    var keys = Object.keys(info);
+    var message = '';
+    var recv = getCurrentUTCDate();
+    var time = getCurrentTime();
+    var hStr = '超過';
+    var lStr = '低於';
+    for (let i = 0; i < keys.length; ++i) {
+        let obj = profile[keys[i]];
+        let data = info[keys[i]];
+        if (obj.high !== '' && data > Number(obj.high) ) {
+            message = message + ' ' + obj.title + hStr + obj.high;
+        }
+        if (obj.low !== '' && data < Number(obj.low) ) {
+            message = message + ' ' + obj.title + lStr + obj.low;
+        }
+    }
+    if (message !== '') {
+        var sqlStr = 'select deviceId, device_mac, device_name, device_status, device_active_time, device_bind_time, device_cp_id, device_user_id, device_status, device_status, device_IoT_org, device_IoT_type, case when device_status = 0 then "unopened" when device_status = 1 then "active"  when device_status = 2 then "binding" when device_status = 3 then "in used" else "unknown" end as statusDesc  from api_device_info where device_type = "LoRaM"';
+        mysqlTool.query(sqlStr, function(err, result){
+            var name = '';
+            var cpId = null;
+            if (err || result.length === 0) {
+                name = mac;
+            } else {
+                for (let i = 0; i < result.length; ++i) {
+                    if ( Object.is(result[i].device_mac, mac)) {
+                        name = result[i].device_name;
+                        cpId = result[i].device_cp_id;
+                        break;
+                    }
+                }
+                if (name === '') {
+                    name = mac;
+                }
+            }
+            var json = {type:'notify', subject:'異常通知', content: message, createUser: name, cpId: cpId.toString()};
+            addLog(json);
+            message = time + ' 裝置:' + name + message;
+            sendLineMessage(message);
+        });
+    }
+ }
+
+ function sendAdminLineMessage (msg) {
+    var bot = linebot({
+        channelId: config.channelId,
+        channelSecret: config.channelSecret,
+        channelAccessToken: config.channelAccessToken
+    });
+    try {
+        var user = JsonFileTools.getJsonFromFile(adminPath);
+        var msg = getCurrentTime() + ' : ' + 'connection ok';
+        if (user === undefined || user.friend === undefined || user.friend.length === 0) {
+            return;
+        }
+    } catch (error) {
+        return;
+    }
+   
+    if (user.friend.length > 0) {
+        bot.multicast(user.friend, msg ).then(function (data) {
+            // success 
+            console.log('push line :' + JSON.stringify(data));
+        }).catch(function (error) {
+            // error 
+            console.log('push line error :' + error);
+        });
+    }
 }
