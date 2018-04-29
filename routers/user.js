@@ -239,7 +239,7 @@ module.exports = (function() {
 			function(rst4, next){
 				mysqlTool.query(sqlStr5, function(err5, result5){
 					//Check user,email is exist or not
-					if (result4.length <= 0) {
+					if (result5.length <= 0) {
 						res.send({
 							"responseCode" : '404',
 							"responseMsg" : 'Cp not exist'
@@ -250,7 +250,7 @@ module.exports = (function() {
 				});
 			},
 			function(rst5, next){
-				userInfo['cpId'] = rst5d[0].cpId
+				userInfo['cpId'] = rst5[0].cpId
 				var encodePwd = util.encode(userInfo.pwd, config.generalKey);
 				let role = 0
 				if(userInfo.cpId === 1){
@@ -259,7 +259,7 @@ module.exports = (function() {
 				if(userInfo.cpId === 8 || userInfo.cpId == 7){
 					role = 15; 
 				}
-				let sqlStr6 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ((select cpId from api_cp where cpName = "'+userInfo.cpId+'"), '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, "'+util.getCurrentTime()+'", 1)'
+				let sqlStr6 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ('+userInfo.cpId+', '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, "'+util.getCurrentTime()+'", 1)'
 				console.log('insert new user sql :\n' + sqlStr6);
 				mysqlTool.insert(sqlStr6, function(err6, result6){
 					next(err6, result6);
@@ -475,7 +475,7 @@ module.exports = (function() {
 			},
 			function(rst3, next){
 				//Update User for oa
-				let sqlStr = 'UPDATE api_user SET `roleId` = '+actInfo.mRoleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId +' and cpId = '+actInfo.cpId;
+				let sqlStr = 'UPDATE api_user SET `roleId` = '+actInfo.mRoleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId;
 				console.log('updateuser sqlstr :\n' + sqlStr);
 				mysqlTool.update(sqlStr, function(err4, result4){
 					next(err4, result4);
