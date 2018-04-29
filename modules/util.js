@@ -187,7 +187,7 @@ function parseMsgd(message, callback) {
     //Parse data
     if(mExtra.fport){
         var mType = mExtra.fport.toString();
-        mongoMap.findLast({'deviceType': fport}).then(function(doc) {
+        mongoMap.findLast({'deviceType': mType}).then(function(doc) {
             // console.log('docs : ' + typeof doc);
             if(doc) {
                 var mInfo = getTypeData(mData,doc);
@@ -197,7 +197,7 @@ function parseMsgd(message, callback) {
                 
                 if(mInfo){
                     var msg = {macAddr: mMac, data: mData, timestamp: timestamp, recv: mRecv, date: mDate, extra: mExtra};
-                    // console.log('**** '+msg.date +' mac:'+msg.macAddr+' => data:'+msg.data+'\ninfo:'+JSON.stringify(mInfo));
+                    console.log('**** '+msg.date +' mac:'+msg.macAddr+' => data:'+msg.data+'\ninfo:'+JSON.stringify(mInfo));
                     msg.information=mInfo;
                     
                     if (debug) {
@@ -216,9 +216,9 @@ function parseMsgd(message, callback) {
                 }
             } else {
                 if (debug) {
-                    console.log(new Date() + 'No map for type '+ type);
+                    console.log(new Date() + 'No map for type '+ mType);
                 }
-                return callback({"error" : "No map of type " + type});
+                return callback({"error" : "No map of type " + mType});
             }
             
         }, function(reason) {
@@ -734,16 +734,23 @@ function getMyDate (dateStr) {
         }
     }
     if (message !== '') {
-        var sqlStr = 'select deviceId, device_mac, device_name, device_status, device_active_time, device_bind_time, device_cp_id, device_user_id, device_status, device_status, device_IoT_org, device_IoT_type, case when device_status = 0 then "unopened" when device_status = 1 then "active"  when device_status = 2 then "binding" when device_status = 3 then "in used" else "unknown" end as statusDesc  from api_device_info where device_type = "LoRaM"';
+        var sqlStr = 'select * from api_device_info where device_type = "LoRaM"';
         mysqlTool.query(sqlStr, function(err, result){
+            if (err) {
+                console.log(err);
+                return;
+            } else if (result === undefined || result === null) {
+                console.log('unable get device');
+                return;
+            }
+
             var name = '';
-            var cpId = null;
+            var cpId = '';
             if (err || result.length === 0) {
                 name = mac;
             } else {
                 for (let i = 0; i < result.length; ++i) {
-                    if ( Object.is(result[i].device_mac, mac)) {
-                        name = result[i].device_name;
+                    if (result[i].device_mac === mac) {
                         cpId = result[i].device_cp_id;
                         break;
                     }
@@ -752,6 +759,10 @@ function getMyDate (dateStr) {
                     name = mac;
                 }
             }
+            //Jason fix cpId is null unable conert to string cause crash issue on 2018.04.29
+            if (cpId === '') {
+                return;
+            } 
             var json = {type:'notify', subject:'異常通知', content: message, createUser: name, cpId: cpId.toString()};
             addLog(json);
             message = time + ' 裝置:' + name + message;
