@@ -12,7 +12,9 @@ var api = require('./routers/api.js'),
 	sys = require('./routers/sys.js'),
 	control = require('./routers/control.js'),
 	device = require('./routers/device.js');
-	log = require('./routers/log.js');
+	log = require('./routers/log.js'),
+	profile = require('./routers/profile.js'),
+	zone = require('./routers/zone.js');
 var config = require('./config');
 var async   = require('async'),
 	request = require('request');
@@ -25,7 +27,7 @@ var basic = auth.basic({
 	realm: "Node JS API",
     file: "./keys.htpasswd" // gevorg:gpass, Sarah:testpass ...
 });
-// Jason add for line-bot notify on 2018.04.24 -- start 
+// Jason add for line-bot notify on 2018.04.24 -- start
 var path = require('path');
 var linebot = require('linebot');
 var JsonFileTools =  require('./modules/jsonFileTools.js');
@@ -37,46 +39,46 @@ if (config.channelId !=='' && config.channelSecret !=='' && config.channelAccess
 		channelSecret: config.channelSecret,
 		channelAccessToken: config.channelAccessToken
 	});
-	
+
 	const linebotParser = bot.parser();
-	
+
 	bot.on('message', function(event) {
 		// 把收到訊息的 event 印出來
 		console.log(event);
 		var msg = new Date() + event.message.text;
 		event.reply(msg).then(function (data) {
-			// success 
+			// success
 			console.log('event reply : ' + JSON.stringify(data));
 		}).catch(function (error) {
-			// error 
+			// error
 			console.log('event reply : ' + JSON.stringify(error));
 		});
 		event.source.profile().then(function (profile) {
 			console.log('uaer profile : ' + JSON.stringify(profile));
 		}).catch(function (error) {
-			// error 
+			// error
 			console.log('uaer profile error : ' + JSON.stringify(error));
 		});
 	});
-	
-	bot.on('follow',   function (event) { 
+
+	bot.on('follow',   function (event) {
 	  //紀錄好友資料
 	  console.log('line follow  : ' + event.source.userId);
 	  addFriend(event.source.userId);
 	});
-	
+
 	bot.on('unfollow', function (event) {
 	  //刪除好友紀錄
 	  console.log('line unfollow  : ' + event.source.userId);
 	  removeFriend(event.source.userId)
 	 });
-	
+
 	bot.on('join',     function (event) {
 	  //紀錄加入者資料資料
 	  addFriend(event.source.userId);
 	  console.log('line join : ' + event.source.userId);
 	 });
-	
+
 	 function getUser() {
 		try {
 			  var user = JsonFileTools.getJsonFromFile(userPath);
@@ -84,17 +86,17 @@ if (config.channelId !=='' && config.channelSecret !=='' && config.channelAccess
 		  catch (e) {
 			  var user = {};
 		  }
-		
+
 		if (user.friend === undefined) {
 		  user.friend = [];
 		}
 		return user;
 	  }
-	
+
 	 function saveUser(user) {
 		JsonFileTools.saveJsonToFile(userPath,user);
 	  }
-	  
+
 	  function addFriend(id) {
 		var user = getUser();
 		var index = user.friend.indexOf(id);
@@ -103,7 +105,7 @@ if (config.channelId !=='' && config.channelSecret !=='' && config.channelAccess
 		}
 		saveUser(user);
 	  }
-	  
+
 	  function removeFriend(id) {
 		var user = getUser();
 		var index = user.friend.indexOf(id);
@@ -143,13 +145,15 @@ app.use('/user'  + config.baseurl, user);//Login,logout,User
 app.use('/api' + config.baseurl, api);
 app.use('/admin' + config.baseurl, cp);//Company
 app.use('/admin' + config.baseurl, grp);//Group
-app.use('/map' + config.baseurl, map);//Device type map
+app.use('/admin' + config.baseurl, log);
 app.use('/admin' + config.baseurl, roles);//Role : user limit
 app.use('/admin' + config.baseurl, func);//function : WEB function enable or not
 app.use('/sys' + config.baseurl, sys);
-app.use('/device' + config.baseurl, device);
 app.use('/control' + config.baseurl, control);
-app.use('/admin' + config.baseurl, log);
+app.use('/device' + config.baseurl, map);//Device type map
+app.use('/device' + config.baseurl, device);
+app.use('/device' + config.baseurl, profile);
+app.use('/device' + config.baseurl, zone);
 
 api = require('./routers/api.js'),
 
