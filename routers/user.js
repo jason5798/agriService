@@ -27,7 +27,6 @@ module.exports = (function() {
 		}
 		userInfo.ip = ip;
 		userInfo.cp = cp;
-		
         async.waterfall([
             function(next){
                 mysqlTool.getUser(userInfo, function(err1, result1){
@@ -45,7 +44,7 @@ module.exports = (function() {
                         });
                         return;
 					}
-					// Decrypt 
+					// Decrypt
 					var dbUser = result1[0];
 					var userPwd = dbUser.userPwd;
 					var decryptPwd = util.decode(userPwd, config.generalKey);
@@ -88,21 +87,21 @@ module.exports = (function() {
 					  }
 					  var obj = genUserInfo(userInfo, dbUser, grps, token);
 					  next(err4, obj);
-					
+
                     // 把 result4 放到下面的 rst (因為 fun3 是最後一個了)
                 });
             }
         ], function(err, rest){
             if(err) {
-				
+
 				res.send({
 					"responseCode" : '999',
 					"responseMsg" : err
 				});
 				return;
-			} 
-			res.send(rest);	    
-		}); 
+			}
+			res.send(rest);
+		});
 	});
 
 	router.post('/logout', function(req, res) {
@@ -128,7 +127,7 @@ module.exports = (function() {
 		async.waterfall([
 			function(next){
 				mysqlTool.query(sqlStr1, function(err1, result1){
-					next(err1, result1);  
+					next(err1, result1);
 				});
 			},
 			function(rst1, next){
@@ -172,8 +171,8 @@ module.exports = (function() {
 			});
 			return;
 		}
-		//Jason add for log revord 2018.04.20 -- start 
-		if (req.body.createUser) { 
+		//Jason add for log revord 2018.04.20 -- start
+		if (req.body.createUser) {
 			userInfo.createUser = req.body.createUser;
 		}
 		//Jason add for log revord 2018.04.20  -- end
@@ -257,7 +256,7 @@ module.exports = (function() {
 					role = 29;
 				}
 				if(userInfo.cpId === 8 || userInfo.cpId == 7){
-					role = 15; 
+					role = 15;
 				}
 				let sqlStr6 = 'insert into api_user(cpId, roleId, userName, nickName, gender, userPwd, deviceType, pic, email, userBlock, userType, createTime, createUser) values ('+userInfo.cpId+', '+role+', "'+userInfo.name+'", "'+userInfo.name+'", "'+userInfo.gender+'", "'+encodePwd+'", '+userInfo.type+', "dummy", "'+userInfo.email+'", 0, 0, "'+util.getCurrentTime()+'", 1)'
 				console.log('insert new user sql :\n' + sqlStr6);
@@ -289,20 +288,20 @@ module.exports = (function() {
 		});
 	});
 
-	//Get users 
+	//Get users
 	router.get('/users', function(req, res) {
 		var token = req.query.token;
 		var search = req.query.search;
 		if (search) {
 			search = util.decode(search, config.generalKey);
 		}
-		
+
 		async.waterfall([
 			function(next){
 				util.checkAndParseToken(token, res,function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						console.log('userInfo : ' + JSON.stringify(result1))
 						let userInfo = result1.userInfo;
@@ -324,8 +323,8 @@ module.exports = (function() {
 								});
 								return;
 							}
-						// }	
-						next(err1, sqlStr); 	  
+						// }
+						next(err1, sqlStr);
 					}
 				});
 			},
@@ -368,8 +367,8 @@ module.exports = (function() {
 			});
 			return;
 		}
-		//Jason add for log revord 2018.04.20 -- start 
-		if (req.body.createUser) { 
+		//Jason add for log revord 2018.04.20 -- start
+		if (req.body.createUser) {
 			actInfo.createUser = req.body.createUser;
 		}
 		if (req.body.userName) {
@@ -384,7 +383,7 @@ module.exports = (function() {
 				util.checkAndParseToken(req.body.token, res,function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo))
@@ -396,7 +395,7 @@ module.exports = (function() {
 						} else {
 							// OAFlg = false
 							if(actInfo.dataset === 0 || actInfo.dataset === 1) {
-								//All user query		
+								//All user query
 								sqlStr = 'UPDATE api_user SET `cpId` = '+actInfo.catId+', `roleId` = '+actInfo.mRoleId+', `userBlock` = '+actInfo.userBlock+', `updateTime` = "'+util.getCurrentTime()+'", `updateUser` = '+actInfo.userId+' WHERE `userId` = '+actInfo.mUserId +' and cpId = '+actInfo.cpId;
 								console.log('put /users sqlStr :\n' + sqlStr);
 								mysqlTool.update(sqlStr, function(err, result){
@@ -407,13 +406,13 @@ module.exports = (function() {
 										});
 										return;
 									} else {
-										toAddUpdateLog (actInfo); 
+										toAddUpdateLog (actInfo);
 										res.send({
 											"responseCode" : '000',
 											"responseMsg" : 'updata success'
 										});
 										return;
-									}	
+									}
 								});
 							} else {
 								res.send({
@@ -422,8 +421,8 @@ module.exports = (function() {
 								});
 								return;
 							}
-						}	
-						 	  
+						}
+
 					}
 				});
 			},
@@ -488,7 +487,7 @@ module.exports = (function() {
 					"responseMsg" : 'update fail'
 				});
 			} else {
-				toAddUpdateLog(actInfo); 
+				toAddUpdateLog(actInfo);
 				res.send({
 					"responseCode" : '000',
 					"responseMsg" : 'updattee success'
@@ -501,22 +500,39 @@ module.exports = (function() {
 	router.delete('/users', function(req, res) {
 		//Check params
 		var actInfo = {};
-		var token = req.query.token;
-		var delUserId = req.query.delUserId;
-        if (delUserId === null) {
-            res.send({
+		var token = null;
+		if (req.query.token) {
+			token = req.query.token;
+		} else if (req.body.token) {
+			token = req.body.token;
+		} else {
+			res.send({
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
 		}
-		actInfo.delUserId = delUserId;
-		//Jason add for log record 2018.04.20 -- start 
-		if (req.query.createUser) { 
+		if (req.query.delUserId) {
+			actInfo.delUserIdr = req.query.delUserId;
+		} else if (req.body.delUserId) {
+			actInfo.delUserId = req.body.delUserId;
+		} else {
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
+		}
+		//Jason add for log record 2018.04.20 -- start
+		if (req.query.createUser) {
 			actInfo.createUser = req.query.createUser;
+		} else if (req.body.createUser) {
+			actInfo.createUser = req.body.createUser;
 		}
 		if (req.query.userName) {
 			actInfo.userName = req.query.userName;
+		} else if (req.body.userName) {
+			actInfo.userNamer = req.body.userName;
 		}
 		//Jason add for log record 2018.04.20  -- end
 
@@ -525,7 +541,7 @@ module.exports = (function() {
 				util.checkAndParseToken(token, res,function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo))
@@ -544,7 +560,7 @@ module.exports = (function() {
 								return;
 							}
 						}
-						next(err1, sqlStr);	  
+						next(err1, sqlStr);
 					}
 				});
 			},
@@ -573,7 +589,7 @@ module.exports = (function() {
 
 	//For taipei query
 	router.get('/:mac', function(req, res) {
-	
+
 		var mac = req.params.mac;
 		if (mac === undefined ) {
 			res.send({
@@ -586,7 +602,7 @@ module.exports = (function() {
 		if (req.query.from)
 			from = req.query.from;
 		if (req.query.to)
-			to = req.query.to;	
+			to = req.query.to;
 
 		if(req.query.paginate)
 			paginate = (req.query.paginate === 'true');
@@ -640,8 +656,8 @@ module.exports = (function() {
 			res.send({
 				"responseCode" : '999',
 				"responseMsg" : reason
-			}); 
-		}); 
+			});
+		});
 	});
 
 	return router;
@@ -655,7 +671,7 @@ function toSaveCSVFile(data, page, limit) {
 	for(let i=0; i<data.docs.length;i++) {
 		console.log('data :' + JSON.stringify(data.docs[i]));
 		let doc = data.docs[i];
-		let obj = {}; 
+		let obj = {};
 		obj.item = i + item;
 		obj.macAddr = doc.macAddr;
 		obj.date = doc.date;
@@ -669,7 +685,7 @@ function toSaveCSVFile(data, page, limit) {
 		if (err) throw err;
 		console.log('file saved');
 	});
-	  
+
 }
 
 //Combine user information for login
@@ -706,17 +722,17 @@ function toAddUpdateLog (actInfo) {
 	}
 	var remark = '';
 	if (actInfo.mRoleId === 1) {
-		remark = remark + '超級管理者,'; 
+		remark = remark + '超級管理者,';
 	} else if (actInfo.mRoleId === 8) {
 		remark = remark + '一般管理者,';
 	} else {
 		remark = remark + '一般使用者,';
 	}
 	if (actInfo.userBlock === 0) {
-		remark = remark + '啟用'; 
+		remark = remark + '啟用';
 	} else if (actInfo.mRoleId === 8) {
 		remark = remark + '禁用';
-	} 
+	}
 	json.remark = remark;
 	util.addLog(json);
 }

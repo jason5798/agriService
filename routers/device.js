@@ -233,7 +233,7 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
-		} 
+		}
 		actInfo.d = mac;
 		actInfo.token = req.body.token;
 
@@ -340,7 +340,7 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
-		} 
+		}
 		if (req.body.name) {
             actInfo.name = req.body.name;
 		}
@@ -357,21 +357,11 @@ module.exports = (function() {
 						//Token is ok
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo));
-						// check roleId
-						if (actInfo.roleId !== 1) {
-							// set no permission
-							res.send({
-								"responseCode" : '401',
-								"responseMsg" : 'no permission to access'
-							});
-							return;
-						}
 						let sqlStr = 'update api_device_info set device_status = 1, device_active_time = current_time(), updateTime = current_time(), device_cp_id = '+actInfo.cpId+', updateUser = ' +actInfo.userId+ ' where device_status = 0 and device_mac = "' + actInfo.mac +'"';
 						//Jason add for agri sensor active
 						if (actInfo.agri === 'true') {
 							sqlStr = 'update api_device_info set device_status = 3, device_active_time = current_time(), updateTime = current_time(), device_cp_id = '+actInfo.cpId+', updateUser = ' +actInfo.userId+ ' where device_status = 0 and device_mac = "' + actInfo.mac +'"';
 						}
-						
 						console.log('active sqlStr :\n' + sqlStr);
 						next(err1, sqlStr);
 					}
@@ -511,7 +501,7 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
-		} 
+		}
 		actInfo.macList = macList;
 		actInfo.token = req.body.token;
 		// Jason add for temp test
@@ -575,7 +565,7 @@ module.exports = (function() {
 				/* ************************************************************/
 			}
 		});
-			
+
 	});
 
 	//Update devices
@@ -592,7 +582,7 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
-		} 
+		}
 		actInfo.name = name;
 		actInfo.mac = mac;
 		actInfo.token = req.body.token;
@@ -660,38 +650,68 @@ module.exports = (function() {
 	//delete user
 	router.delete('/device', function(req, res) {
 		//Check params
-		var token = req.query.token;
-		var delDeviceId = req.query.delDeviceId;
+		var token = null;
 		var actInfo = {};
-        if (delDeviceId === undefined) {
-            res.send({
+		if (req.query.token) {
+			token = req.query.token;
+		} else if (req.body.token) {
+			token = req.body.token;
+		} else {
+			res.send({
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
 		}
-		//Jason add for log delete mac on 2018.04.28 -- start 
+		if (req.query.delDeviceId) {
+			actInfo.delDeviceId = req.query.delDeviceId;
+		} else if (req.body.deviceType) {
+			actInfo.delDeviceId = req.body.delDeviceId;
+		} else {
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
+		}
+
+		//Jason add for log delete mac on 2018.04.28 -- start
 		if (req.query.mac) {
-            actInfo.mac = req.query.mac;
+			actInfo.mac = req.query.mac;
+		} else if (req.body.getMacString) {
+			actInfo.mac = req.body.mac;
+		} else {
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
 		}
 		if (req.query.name) {
-            actInfo.name = req.query.name;
+			actInfo.name = req.query.name;
+		} else if (req.body.name) {
+			actInfo.name = req.body.name;
+		} else {
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
 		}
-		actInfo.delDeviceId = delDeviceId;
 
         async.waterfall([
 			function(next){
-				util.checkAndParseToken(req.query.token, res,function(err1, result1){
+				util.checkAndParseToken(token, res,function(err1, result1){
 					if (err1) {
 						return;
-					} else { 
+					} else {
 						//Token is ok
 						actInfo = util.addJSON(actInfo, result1.userInfo);
 						console.log('actInfo : ' + JSON.stringify(actInfo))
 						let sqlStr = '';
 						sqlStr = 'delete from api_device_info where deviceId='+actInfo.delDeviceId;
 						console.log('delete device sql : +\n' + sqlStr);
-						next(err1, sqlStr);	  
+						next(err1, sqlStr);
 					}
 				});
 			},
@@ -726,7 +746,7 @@ module.exports = (function() {
 		});
 	});
 
-	// JASON add for get all of sensors 
+	// JASON add for get all of sensors
 	router.get('/sensor', function(req, res) {
 		//User Token for auth
 		let actInfo = {};
@@ -799,7 +819,7 @@ module.exports = (function() {
 				axios.all(promises).then(function(results) {
 					for(let i = 0 ; i < deviceList.length ; i++){
 						let d = deviceList[i];
-						
+
 						try {
 							let result = results[i].data.data;
 							if(result)

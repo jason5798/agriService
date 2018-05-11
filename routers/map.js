@@ -6,7 +6,7 @@ var util = require('../modules/util.js');
 var mongoMap = require('../modules/mongo/mongoMap.js');
 
 module.exports = (function() {
-    //Read 
+    //Read
 	router.get('/', function(req, res) {
 		var token = req.query.token;
         if ( token === undefined) {
@@ -16,11 +16,11 @@ module.exports = (function() {
 			});
 			return false;
 		}
-		
+
         util.checkAndParseToken(token, res,function(err,result){
 			if (err) {
 				return;
-			} else { 
+			} else {
 				//Token is ok
                 mongoMap.find({}).then(function(data) {
                     // on fulfillment(已實現時)
@@ -35,12 +35,12 @@ module.exports = (function() {
                     res.send({
                         "responseCode" : '999',
                         "responseMsg" : reason
-                    }); 
-                }); 
+                    });
+                });
 			}
 		});
     });
-    
+
 	router.get('/:type', function(req, res) {
 		var token = req.query.token;
         var type = req.params.type;
@@ -52,11 +52,11 @@ module.exports = (function() {
 			return false;
 		}
         var json = {'deviceType': type};
-		
+
         util.checkAndParseToken(token, res,function(err,result){
 			if (err) {
 				return;
-			} else { 
+			} else {
 				//Token is ok
                 mongoMap.find(json).then(function(data) {
                     // on fulfillment(已實現時)
@@ -71,12 +71,12 @@ module.exports = (function() {
                     res.send({
                         "responseCode" : '999',
                         "responseMsg" : reason
-                    }); 
-                }); 
+                    });
+                });
 			}
 		});
 	});
-    
+
     router.post('/', function(req, res) {
         var checkArr = ['token','deviceType','typeName','fieldName','map','createUser'];
         var obj = util.checkFormData(req, checkArr);
@@ -95,7 +95,7 @@ module.exports = (function() {
         util.checkAndParseToken(req.body.token, res,function(err,result){
 			if (err) {
 				return;
-			} else { 
+			} else {
 				//Token is ok
                 mongoMap.create(obj).then(function(data) {
                     // on fulfillment(已實現時)
@@ -110,8 +110,8 @@ module.exports = (function() {
                     res.send({
                         "responseCode" : '999',
                         "responseMsg" : reason
-                    }); 
-                }); 
+                    });
+                });
 			}
 		});
 	});
@@ -154,7 +154,7 @@ module.exports = (function() {
         util.checkAndParseToken(req.body.token, res, function(err,result){
 			if (err) {
 				return;
-			} else { 
+			} else {
 				//Token is ok
                 mongoMap.update({"deviceType": req.body.deviceType}, json).then(function(data) {
                     // on fulfillment(已實現時)
@@ -169,27 +169,44 @@ module.exports = (function() {
                     res.send({
                         "responseCode" : '999',
                         "responseMsg" : reason
-                    }); 
-                }); 
+                    });
+                });
 			}
 		});
 	});
 
-	//Delete by ID 
+	//Delete by ID
 	router.delete('/', function(req, res) {
-		if (req.body.deviceType === null) {
-            res.send({
+		var deviceType = null;
+		var token = null;
+		if (req.query.token) {
+			token = req.query.token;
+		} else if (req.body.token) {
+			token = req.body.token;
+		} else {
+			res.send({
 				"responseCode" : '999',
 				"responseMsg" : 'Missing parameter'
 			});
 			return;
 		}
-		util.checkAndParseToken(req.body.token, res,function(err,result){
+		if (req.query.deviceType) {
+			deviceType = req.query.deviceType;
+		} else if (req.body.deviceType) {
+			deviceType = req.body.deviceType;
+		} else {
+			res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+			return;
+		}
+		util.checkAndParseToken(token, res,function(err,result){
 			if (err) {
 				return;
-			} else { 
+			} else {
 				//Token is ok
-                mongoMap.remove({"deviceType": req.body.deviceType}).then(function(data) {
+                mongoMap.remove({"deviceType": deviceType}).then(function(data) {
                     // on fulfillment(已實現時)
                     res.status(200);
 					res.setHeader('Content-Type', 'application/json');
@@ -202,8 +219,8 @@ module.exports = (function() {
                     res.send({
                         "responseCode" : '999',
                         "responseMsg" : reason
-                    }); 
-                }); 
+                    });
+                });
 			}
 		});
 	});
@@ -211,4 +228,4 @@ module.exports = (function() {
 	return router;
 
 })();
-     
+
